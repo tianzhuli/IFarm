@@ -1,0 +1,25 @@
+package com.ifarm.service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.ifarm.bean.ControlTask;
+import com.ifarm.dao.ControlTaskDao;
+
+@Service
+public class ControlTaskService {
+	@Autowired
+	private ControlTaskDao controlTaskDao;
+
+	public void saveControlTask(ControlTask controlTask) {
+		controlTaskDao.saveBase(controlTask);
+	}
+
+	public void updateControlTask(ControlTask controlTask) {
+		controlTaskDao.updateControlTask(controlTask);
+	}
+
+	public void deleteControlTask(ControlTask controlTask) {
+		controlTaskDao.delteControlTask(controlTask);
+	}
+}
