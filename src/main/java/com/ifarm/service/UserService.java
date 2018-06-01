@@ -1,5 +1,6 @@
 package com.ifarm.service;
 
+import java.math.BigInteger;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -19,16 +20,19 @@ import com.ifarm.annotation.FarmServiceLog;
 import com.ifarm.bean.ControlTask;
 import com.ifarm.bean.Page;
 import com.ifarm.bean.User;
+import com.ifarm.bean.UserFarmAuthority;
 import com.ifarm.bean.WFMControlTask;
 import com.ifarm.constant.AuthorityConstant;
 import com.ifarm.constant.SystemResultCodeEnum;
 import com.ifarm.dao.UserDao;
+import com.ifarm.dao.UserFarmAuthorityDao;
 import com.ifarm.nosql.bean.UserToken;
 import com.ifarm.nosql.dao.UserTokenDao;
 import com.ifarm.util.CacheDataBase;
 import com.ifarm.util.FileUtil;
 import com.ifarm.util.JsonObjectUtil;
 import com.ifarm.util.RandomUtil;
+import com.ifarm.util.SystemResultEncapsulation;
 
 @Service
 public class UserService {
@@ -37,6 +41,9 @@ public class UserService {
 
 	@Autowired
 	private UserTokenDao userTokenDao;
+
+	@Autowired
+	private UserFarmAuthorityDao userFarmAuthorityDao;
 
 	private static final Log user_log = LogFactory.getLog(UserService.class);
 
@@ -54,19 +61,19 @@ public class UserService {
 					CacheDataBase.userControlResultMessageCache.put(userId, new LinkedBlockingQueue<String>());
 					CacheDataBase.controlTaskStateCache.put(userId, new LinkedBlockingQueue<ControlTask>());
 					CacheDataBase.wfmControlTaskStateCache.put(userId, new LinkedBlockingQueue<WFMControlTask>());
-					jsonObject.put("message", "success");
+					jsonObject.put("message", SystemResultCodeEnum.SUCCESS);
 					jsonObject.put("token", token);
 					CacheDataBase.userToken.put(user.getUserId(), token);
 				} else {
-					jsonObject.put("message", "repeat");
+					jsonObject.put("message", SystemResultCodeEnum.REPEAT);
 				}
 			} catch (Exception e) {
 				// TODO: handle exception
 				e.printStackTrace();
-				jsonObject.put("message", "error");
+				jsonObject.put("message", SystemResultCodeEnum.ERROR);
 			}
 		} else {
-			jsonObject.put("message", "format error");
+			jsonObject.put("message", SystemResultCodeEnum.FORMAT_ERROR);
 		}
 		return jsonObject;
 	}
@@ -74,27 +81,27 @@ public class UserService {
 	@FarmServiceLog(value = "getToken", param = "user")
 	public String userGetToken(String userId) {
 		if (userId == null) {
-			return "error";
+			return SystemResultCodeEnum.ERROR;
 		}
 		StringBuffer stringBuffer = new StringBuffer();
 		stringBuffer.append("ifarm");
 		stringBuffer.append(UUID.randomUUID());
 		String token = stringBuffer.toString().replace("-", "");
-		System.out.println(userId + ":" + token);
+		user_log.info(userId + ":" + token);
 		CacheDataBase.userToken.put(userId, token);
 		return token;
 	}
 
 	public String userGetSignature(String userId) {
 		if (userId == null) {
-			return "error";
+			return SystemResultCodeEnum.ERROR;
 		}
 		StringBuffer stringBuffer = new StringBuffer();
 		stringBuffer.append("ifarm");
 		stringBuffer.append(UUID.randomUUID());
 		stringBuffer.append(Base64.encodeBase64String(userId.getBytes()));
 		String token = stringBuffer.toString().replace("-", "");
-		System.out.println(userId + ":" + token);
+		user_log.info(userId + ":" + token);
 		CacheDataBase.userSignature.put(userId, token);
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 		UserToken userToken = new UserToken();
@@ -110,12 +117,12 @@ public class UserService {
 
 	public String userLogin(User user, String token) {
 		if (user.getUserId() == null || user.getUserPwd() == null) {
-			return "invain";
+			return SystemResultCodeEnum.INVNAIN;
 		}
 		String userToken = "";
 		userToken = CacheDataBase.userToken.get(user.getUserId());
 		if (!token.equals(userToken)) {
-			return "errorToken";
+			return SystemResultCodeEnum.ERROR_TOKEN;
 		}
 		String pwdBase64 = new String(Base64.decodeBase64(user.getUserPwd()));
 		user.setUserPwd(pwdBase64);
@@ -128,22 +135,22 @@ public class UserService {
 				String signature = userGetSignature(user.getUserId());
 				// System.out.println(user.getUserId() + ":redis-token：" +
 				// userTokenDao.getUserToken(user.getUserId()));
-				return "success" + ":" + signature;
+				return SystemResultCodeEnum.SUCCESS + ":" + signature;
 			} else {
-				return "wrong";
+				return SystemResultCodeEnum.WRONG;
 			}
 		} catch (Exception e) {
 			// TODO: handle exception
 			e.printStackTrace();
-			return "error";
+			return SystemResultCodeEnum.ERROR;
 		}
 	}
 
 	public String updateUser(User user) {
 		if (userDao.updateDynamic(user)) {
-			return "success";
+			return SystemResultCodeEnum.SUCCESS;
 		} else {
-			return "error";
+			return SystemResultCodeEnum.ERROR;
 		}
 	}
 
@@ -160,20 +167,20 @@ public class UserService {
 			}
 			return JsonObjectUtil.toJsonObjectString(user);
 		} else {
-			return "null";
+			return SystemResultCodeEnum.NO_USER;
 		}
 	}
 
 	public String getUsersListAround(String userId, Page page) {
 		if (page.getBeginIndex() == null || page.getCount() == null) {
-			return "valid";
+			return SystemResultCodeEnum.INVNAIN;
 		}
 		List<User> list = userDao.getUsersListAround(userId, page);
 		return JsonObjectUtil.toJsonArrayString(list);
 	}
 
-	public String getAllUserList(User user) {
-		List<User> list = userDao.getDynamicList(user);
+	public String getAllUserList() {
+		List<User> list = userDao.selectAllUser();
 		for (int i = 0; i < list.size(); i++) {
 			User user2 = list.get(i);
 			if (user2.getUserImageUrl() != null && user2.getUserId() != null) {
@@ -185,15 +192,16 @@ public class UserService {
 				user2.setUserBackImageUrl(userImagePath);
 			}
 		}
-		return JsonObjectUtil.toJsonArrayString(list);
+		String result = JsonObjectUtil.toJsonArrayString(list);
+		return result;
 	}
 
-	public String addSubUser(String userId) {
+	public String addSubUser(String userId, Integer farmId, String authority) {
 		JSONObject jsonObject = new JSONObject();
 		User user = userDao.getUserById(userId);
 		if (AuthorityConstant.FARMER.equals(user.getUserRole())) {
-			Long subUserCount = userDao.subUserCount(userId);
-			if (subUserCount > 3 && !AuthorityConstant.FARMER_VIP.equals(user.getUserRole())) {
+			BigInteger subUserCount = userDao.subUserCount(userId);
+			if (subUserCount.intValue() > 3 && !AuthorityConstant.FARMER_VIP.equals(user.getUserRole())) {
 				jsonObject.put("response", SystemResultCodeEnum.USER_SUB_FULL);
 				return jsonObject.toString();
 			}
@@ -201,6 +209,8 @@ public class UserService {
 			User subUser = new User(subUserId, AuthorityConstant.INIT_PWD);
 			try {
 				userDao.saveUser(subUser);
+				UserFarmAuthority userFarmAuthority = new UserFarmAuthority(subUserId, farmId, authority);
+				userFarmAuthorityDao.saveBase(userFarmAuthority);
 				jsonObject.put("response", SystemResultCodeEnum.SUCCESS);
 			} catch (Exception e) {
 				// TODO: handle exception
@@ -211,5 +221,36 @@ public class UserService {
 			jsonObject.put("response", SystemResultCodeEnum.NO_AUTH);
 		}
 		return jsonObject.toString();
+	}
+
+	public String subUserQuery(String userId) {
+		try {
+			return JsonObjectUtil.toJsonArrayString(userDao.subUserQuery(userId));
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+			return SystemResultCodeEnum.ERROR;
+		}
+		
+	}
+
+	public String subUserAuthorityQuery(String userId) {
+		return JsonObjectUtil.toJsonArrayString(userFarmAuthorityDao.queryUserAuthorityByUserId(userId));
+	}
+
+	public String updateSubUserAuthority(UserFarmAuthority userFarmAuthority) {
+		try {
+			userFarmAuthorityDao.updateDynamic(userFarmAuthority);
+			return SystemResultEncapsulation.resultCodeDecorate(SystemResultCodeEnum.SUCCESS);
+		} catch (Exception e) {
+			// TODO: handle exception
+			user_log.error(e.getMessage());
+			user_log.error("sub User更新异常", e);
+			return SystemResultEncapsulation.resultCodeDecorate(SystemResultCodeEnum.ERROR);
+		}
+	}
+	
+	public static void main(String[] args) {
+		System.out.println( new String(Base64.encodeBase64("123456".getBytes())));
 	}
 }

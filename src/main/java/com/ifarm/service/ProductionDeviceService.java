@@ -1,6 +1,6 @@
 package com.ifarm.service;
 
-import java.util.Date;
+import java.util.Calendar;
 
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -17,6 +17,7 @@ import com.ifarm.dao.FarmCollectorDeviceDao;
 import com.ifarm.dao.FarmControlDeviceDao;
 import com.ifarm.dao.ProductionDeviceDao;
 import com.ifarm.redis.util.ProductionDeviceUtil;
+import com.ifarm.util.JsonObjectUtil;
 import com.ifarm.util.RandomUtil;
 
 @Service
@@ -53,14 +54,14 @@ public class ProductionDeviceService {
 	 * @param deviceCreatePerson
 	 * @return
 	 */
-	@SuppressWarnings("deprecation")
+	
 	public JSONArray createProductionDevice(String deviceType, String deviceCategory, String deviceDescription, int batch) {
 		JSONArray jsonArray = new JSONArray();
 		for (int i = 0; i < batch; i++) {
 			JSONObject jsonObject = new JSONObject();
 			String deviceVerification = RandomUtil.randomString();
 			ProductionDevice proDevice = new ProductionDevice(deviceVerification, deviceType, deviceCategory, deviceDescription);
-			int base = new Date().getYear() % 100 * 10;
+			int base = Calendar.getInstance().getWeekYear() % 100 * 10;
 			if (concentrator.equals(deviceCategory)) {
 				base += 1;
 			} else if (controlDevice.equals(deviceCategory)) {
@@ -106,21 +107,22 @@ public class ProductionDeviceService {
 	public JSONObject deviceCheck(ProductionDevice productionDevice) {
 		JSONObject jsonObject = new JSONObject();
 		Integer deviceId = productionDevice.getDeviceId();
-		if (deviceId == null) {
+		ProductionDevice originalProductionDevice = productionDeviceDao.queryProductionDevice(deviceId);
+		if (deviceId == null || originalProductionDevice == null) {
 			jsonObject.put("response", SystemResultCodeEnum.NO_ID);
 			return jsonObject;
 		}
-		ProductionDevice originalProductionDevice = productionDeviceDao.queryProductionDevice(deviceId);
-		String deviceCategory = productionDevice.getDeviceCategory();
-		if (deviceCategory == null) {
-			deviceCategory = originalProductionDevice.getDeviceCategory();
-		}
-		if (!originalProductionDevice.getDeviceCategory().equals(deviceCategory)) {
-			jsonObject.put("response", SystemResultCodeEnum.CATEGORY_ERROR);
+		if (!originalProductionDevice.getDeviceVerification().equals(productionDevice.getDeviceVerification())) {
+			jsonObject.put("response", SystemResultCodeEnum.CHECK_ERROR);
 			return jsonObject;
 		}
 		jsonObject.put("response", SystemResultCodeEnum.SUCCESS);
+		jsonObject.put("device", JsonObjectUtil.fromBean(productionDevice));
 		return jsonObject;
+	}
+	
+	public static void main(String[] args) {
+		System.out.println(Calendar.getInstance().getWeekYear() % 100);
 	}
 
 }

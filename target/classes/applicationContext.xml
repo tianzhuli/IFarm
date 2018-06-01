@@ -4,11 +4,13 @@
 	xmlns:context="http://www.springframework.org/schema/context"
 	xmlns:mvc="http://www.springframework.org/schema/mvc" xmlns:aop="http://www.springframework.org/schema/aop"
 	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:cache="http://www.springframework.org/schema/cache"
 	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.2.xsd
 	http://www.springframework.org/schema/context  http://www.springframework.org/schema/context/spring-context-4.2.xsd
 	http://www.springframework.org/schema/tx  http://www.springframework.org/schema/tx/spring-tx-4.2.xsd
 	http://www.springframework.org/schema/aop  http://www.springframework.org/schema/aop/spring-aop-4.2.xsd
-	http://www.springframework.org/schema/mvc  http://www.springframework.org/schema/mvc/spring-mvc-4.2.xsd">
+	http://www.springframework.org/schema/mvc  http://www.springframework.org/schema/mvc/spring-mvc-4.2.xsd
+	http://www.springframework.org/schema/cache http://www.springframework.org/schema/cache/spring-cache-4.2.xsd">
 
 	<context:component-scan base-package="com.ifarm.dao" />
 	<context:component-scan base-package="com.ifarm.nosql.dao" />
@@ -16,7 +18,7 @@
 	<context:component-scan base-package="com.ifarm.service" />
 	<context:component-scan base-package="com.ifarm.bean" />
 	<context:component-scan base-package="com.ifarm.util" />
-	<context:component-scan base-package="com.ifarm.websocket" />
+	<!-- <context:component-scan base-package="com.ifarm.websocket" /> -->
 	<context:component-scan base-package="com.ifarm.redis.util"/>
 
 	<context:property-placeholder location="classpath:persistence-mysql.properties" />
@@ -90,6 +92,14 @@
 		<property name="maxIdle" value="300"></property>
 		<property name="maxTotal" value="1000"></property>
 	</bean>
+	
+	<bean id="ehcache" class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean">
+        <property name="configLocation" value="classpath:ehcache.xml"/>
+    </bean>
+    <bean id="cacheManager" class="org.springframework.cache.ehcache.EhCacheCacheManager">
+        <property name="cacheManager" ref="ehcache"/>
+    </bean>
+    <cache:annotation-driven />
 	
 	<bean id="stringSerializer"
 		class="org.springframework.data.redis.serializer.StringRedisSerializer" />

@@ -5,6 +5,8 @@ import java.io.PrintWriter;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
@@ -14,13 +16,16 @@ import com.ifarm.constant.SystemResultCodeEnum;
 import com.ifarm.dao.UserDao;
 import com.ifarm.util.CacheDataBase;
 
-public class UserControlInterceptor implements HandlerInterceptor{
+public class UserControlInterceptor implements HandlerInterceptor {
 	@Autowired
 	private UserDao userDao;
-	
+
+	private static final Log CONTROLTERCEPTOR_LOG = LogFactory.getLog(UserControlInterceptor.class);
+
 	@Override
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 		// TODO Auto-generated method stub
+		CONTROLTERCEPTOR_LOG.info(request.getRequestURI() + "---" + request.getParameterMap());
 		String signature = request.getParameter("signature");
 		String userId = request.getParameter("userId");
 		response.setContentType("text/html;charset=utf-8");
@@ -38,7 +43,7 @@ public class UserControlInterceptor implements HandlerInterceptor{
 					return false;
 				}
 				return true;
-			} else {	
+			} else {
 				out.print(SystemResultCodeEnum.EXPIRED_TOKEN);
 				out.flush();
 				out.close();
@@ -55,13 +60,13 @@ public class UserControlInterceptor implements HandlerInterceptor{
 	@Override
 	public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 }

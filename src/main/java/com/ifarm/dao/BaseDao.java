@@ -1,10 +1,10 @@
 package com.ifarm.dao;
 
 import java.lang.reflect.Field;
-import java.sql.Timestamp;
-import java.util.Date;
 import java.util.List;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.hibernate.Criteria;
 import org.hibernate.Query;
 import org.hibernate.Session;
@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 public class BaseDao<T> {
 	private SessionFactory sessionFactory;
+
+	private final static Log log = LogFactory.getLog(BaseDao.class);
 
 	public SessionFactory getSessionFactory() {
 		return sessionFactory;
@@ -95,34 +97,27 @@ public class BaseDao<T> {
 				}
 			}
 			hqlBuffer.deleteCharAt(hqlBuffer.length() - 1);
-			hqlBuffer.append(" where t." + fields[0].getName() + "=" + fields[0].get(t));
-			System.out.println(hqlBuffer);
+			hqlBuffer.append(" where t." + fields[0].getName() + "=?");
+			// System.out.println(hqlBuffer);
 			Query query = session.createQuery(hqlBuffer.toString());
 			int position = 0;
 			for (int i = 1; i < fields.length; i++) {
 				fields[i].setAccessible(true);
 				if (fields[i].get(t) != null) {
-					if (fields[i].get(t) instanceof Integer) {
-						query.setInteger(position, (int) fields[i].get(t));
-					} else if (fields[i].get(t) instanceof String) {
-						query.setString(position, (String) fields[i].get(t));
-					} else if (fields[i].get(t) instanceof Timestamp) {
-						query.setTimestamp(position, (Date) fields[i].get(t));
-					} else if (fields[i].get(t) instanceof Double) {
-						query.setDouble(position, (double) fields[i].get(t));
-					} else if (fields[i].get(t) instanceof Float) {
-						query.setFloat(position, (float) fields[i].get(t));
-					} else if (fields[i].get(t) instanceof Long) {
-						query.setLong(position, (long) fields[i].get(t));
-					}
+					Object val = fields[i].get(t);
+					query.setParameter(position, val);
 					position++;
 				}
 			}
+			query.setParameter(position, fields[0].get(t));
+			log.info(tableName + " update query:" + query.getQueryString());
 			query.executeUpdate();
 			return true;
 		} catch (Exception e) {
 			// TODO: handle exception
-			e.printStackTrace();
+			// e.printStackTrace();
+			log.error(e.getMessage());
+			log.error(tableName + "动态更新异常", e);
 			return false;
 		}
 	}

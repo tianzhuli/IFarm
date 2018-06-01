@@ -6,8 +6,8 @@ import net.sf.json.JSONArray;
 import net.sf.json.JSONException;
 import net.sf.json.JSONObject;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -28,7 +28,7 @@ import com.ifarm.util.ControlTaskUtil;
 
 @Component
 public class ControlHandler extends TextWebSocketHandler implements WebSocketObserver {
-	private static final Log controlHandler_log = LogFactory.getLog(ControlHandler.class);
+	private static final Logger controlHandler_log = LoggerFactory.getLogger(ControlHandler.class);
 	private FarmControlSystemService farmControlSystemService;
 	private CombinationControlTaskService combinationControlTaskService;
 
@@ -69,7 +69,7 @@ public class ControlHandler extends TextWebSocketHandler implements WebSocketObs
 	@Override
 	public void afterConnectionEstablished(WebSocketSession session) throws Exception {
 		// TODO Auto-generated method stub
-		System.out.println(session + "建立连接");
+		controlHandler_log.info(session + "建立连接");
 		if (!(boolean) session.getAttributes().get("authState")) {
 			session.sendMessage(new TextMessage("signature error"));
 			// session.close();
@@ -95,11 +95,11 @@ public class ControlHandler extends TextWebSocketHandler implements WebSocketObs
 		try {
 			messageJson = JSONObject.fromObject(messgaeDetail);
 			// 权限验证
-			boolean flag = authorityManager(messageJson, userId);
+			/*boolean flag = authorityManager(messageJson, userId);
 			if (!flag) {
 				session.sendMessage(new TextMessage("no_auth"));
 				return;
-			}
+			}*/
 			resultJson = controlHandler(userId, session, messageJson);
 		} catch (JSONException je) {
 			if (messgaeDetail.contains("[")) {
@@ -154,7 +154,7 @@ public class ControlHandler extends TextWebSocketHandler implements WebSocketObs
 				controlHandler_log.info("controlCommandCache" + CacheDataBase.controlCommandCache);
 			} catch (Exception e) {
 				// TODO: handle exception
-				controlHandler_log.error(e.toString());
+				controlHandler_log.error("control handler error",e);
 				resultJson.put("response", ControlTaskEnum.ERROR);
 			}
 		}

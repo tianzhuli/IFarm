@@ -5,6 +5,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -33,6 +35,8 @@ public class FarmControlController {
 
 	@Autowired
 	private CombinationControlTaskService combinationControlTaskService;
+	
+	private static final Logger LOGGER = LoggerFactory.getLogger(FarmControlController.class);
 	
 	@RequestMapping("controlSystemList")
 	public String farmControlSystemsDynamicList(FarmControlSystem farmControlSystem, String userId) {
@@ -133,7 +137,7 @@ public class FarmControlController {
 				}
 			} catch (Exception e) {
 				// TODO: handle exception
-				e.printStackTrace();
+				LOGGER.error("execute control error", e);
 				resultJson.put("response", ControlTaskEnum.ERROR);
 			}
 			return resultJson.toString();
@@ -152,4 +156,10 @@ public class FarmControlController {
 	public String getFarmControlOperationList(FarmControlTerminal farmControlTerminal) {
 		return farmControlTerminalService.getFarmControlOperationList(farmControlTerminal);
 	}
+	
+	@RequestMapping("terminal/addition")
+	public String terminalAddition(FarmControlTerminal farmControlTerminal) {
+		return farmControlTerminalService.saveFarmControlSystem(farmControlTerminal);
+	}
+
 }

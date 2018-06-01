@@ -11,7 +11,7 @@ import org.apache.mina.core.session.IoSession;
 
 public class CollectHandler extends IoHandlerAdapter {
 
-	private static final Log ioHandler_log = LogFactory.getLog(CollectHandler.class);
+	private static final Log HANDLER_LOG = LogFactory.getLog(CollectHandler.class);
 
 	@Override
 	public void sessionCreated(IoSession session) throws Exception {
@@ -19,7 +19,7 @@ public class CollectHandler extends IoHandlerAdapter {
 		super.sessionCreated(session);
 		InetSocketAddress socketAddress = (InetSocketAddress) session.getRemoteAddress();
 		InetAddress address = socketAddress.getAddress();
-		System.out.println("client ip:" + address.getHostAddress());
+		HANDLER_LOG.info("client ip:" + address.getHostAddress());
 
 	}
 
@@ -27,14 +27,14 @@ public class CollectHandler extends IoHandlerAdapter {
 	public void sessionOpened(IoSession session) throws Exception {
 		// TODO Auto-generated method stub
 		super.sessionOpened(session);
-		System.out.println(this + "---" + session + "------" + "session open");
+		HANDLER_LOG.info(this + "---" + session + "------" + "session open");
 	}
 
 	@Override
 	public void sessionClosed(IoSession session) throws Exception {
 		// TODO Auto-generated method stub
 		super.sessionClosed(session);
-		System.out.println("session close");
+		HANDLER_LOG.info("session close");
 	}
 
 	@Override
@@ -47,7 +47,7 @@ public class CollectHandler extends IoHandlerAdapter {
 	public void exceptionCaught(IoSession session, Throwable cause) throws Exception {
 		// TODO Auto-generated method stub
 		super.exceptionCaught(session, cause);
-		ioHandler_log.error(cause);
+		HANDLER_LOG.error(cause);
 	}
 
 	@Override

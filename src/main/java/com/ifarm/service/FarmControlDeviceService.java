@@ -39,4 +39,8 @@ public class FarmControlDeviceService {
 			return SystemResultEncapsulation.resultCodeDecorate(SystemResultCodeEnum.ERROR);
 		}
 	}
+
+	public String farmControlDeviceList(FarmControlDevice farmControlDevice) {
+		return JsonObjectUtil.toJsonArrayString(farmControlDeviceDao.getDynamicList(farmControlDevice));
+	}
 }

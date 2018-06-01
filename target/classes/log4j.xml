@@ -42,6 +42,24 @@
 			<param name="ConversionPattern" value="%d{yyyy-MM-dd HH:mm:ss:SSS} [%-5p]: %c - %l %m%n" />
 		</layout>
 	</appender>
+	<appender name="RollingFileAppenderMina" class="org.apache.log4j.RollingFileAppender">
+		<param name="File" value="E:/log/mina/mina.log" />
+		<param name="Append" value="true" />
+		<param name="MaxFileSize" value="1MB" />
+		<param name="MaxBackupIndex" value="10" />
+		<layout class="org.apache.log4j.PatternLayout">
+			<param name="ConversionPattern" value="%d{yyyy-MM-dd HH:mm:ss:SSS} [%-5p]: %c - %l %m%n" />
+		</layout>
+	</appender>
+	<appender name="RollingFileAppenderSocket" class="org.apache.log4j.RollingFileAppender">
+		<param name="File" value="E:/log/socket/socket.log" />
+		<param name="Append" value="true" />
+		<param name="MaxFileSize" value="1MB" />
+		<param name="MaxBackupIndex" value="10" />
+		<layout class="org.apache.log4j.PatternLayout">
+			<param name="ConversionPattern" value="%d{yyyy-MM-dd HH:mm:ss:SSS} [%-5p]: %c - %l %m%n" />
+		</layout>
+	</appender>
 	<appender name="DailyRollingFileAppender" class="org.apache.log4j.DailyRollingFileAppender">
 		<param name="File" value="E:/dailylog/ifarm.log" />
 		<param name="Append" value="true" />
@@ -71,6 +89,16 @@
 		<level value="ERROR" />
 		<appender-ref ref="CONSOLE" />
 		<appender-ref ref="DailyRollingFileAppender" />
+	</category>
+	<category name="com.ifarm.mina">
+		<level value="ALL" />
+		<!-- <appender-ref ref="CONSOLE" /> -->
+		<appender-ref ref="RollingFileAppenderMina" />
+	</category>
+	<category name="com.ifarm.websocket">
+		<level value="ALL" />
+		<!-- <appender-ref ref="CONSOLE" /> -->
+		<appender-ref ref="RollingFileAppenderSocket" />
 	</category>
 	<category name="com.ifarm">
 		<level value="ALL" />

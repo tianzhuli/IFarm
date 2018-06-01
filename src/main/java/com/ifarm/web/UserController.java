@@ -7,6 +7,8 @@ import java.util.Iterator;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -14,10 +16,13 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 import org.springframework.web.multipart.commons.CommonsMultipartResolver;
+import org.springframework.web.servlet.HandlerExceptionResolver;
+import org.springframework.web.servlet.ModelAndView;
 
 import com.ifarm.annotation.FarmControllerLog;
 import com.ifarm.bean.Page;
 import com.ifarm.bean.User;
+import com.ifarm.bean.UserFarmAuthority;
 import com.ifarm.nosql.service.UserLogMongoService;
 import com.ifarm.service.UserLogService;
 import com.ifarm.service.UserService;
@@ -25,7 +30,7 @@ import com.ifarm.util.FileUtil;
 
 @RestController
 @RequestMapping(value = "user")
-public class UserController {
+public class UserController implements HandlerExceptionResolver {
 	@Autowired
 	private UserService userService;
 
@@ -34,6 +39,8 @@ public class UserController {
 
 	@Autowired
 	private UserLogMongoService userLogMongoService;
+
+	private static final Log USER_CONTROLLER_LOG = LogFactory.getLog(UserController.class);
 
 	@RequestMapping(value = "login")
 	public String userLogin(@RequestParam("token") String token, HttpServletRequest request, User user) {
@@ -128,9 +135,41 @@ public class UserController {
 		String returnMessage = userService.getUsersListAround(userId, page);
 		return returnMessage;
 	}
-	
-	@RequestMapping(value="addSubUser")
-	public String addSubUser(String userId) {
-		return userService.addSubUser(userId);
+
+	/**
+	 * 
+	 * @param userId
+	 * @param farmId
+	 * @param authority
+	 *            权限，目前是两个onlySee和doControl或者all
+	 * @return
+	 */
+	@RequestMapping(value = "addSubUser")
+	public String addSubUser(String userId, Integer farmId, String authority) {
+		return userService.addSubUser(userId, farmId, authority);
+	}
+
+	@RequestMapping(value = "subUserQuery")
+	public String subUserQuery(String userId) {
+		return userService.subUserQuery(userId);
+	}
+
+	@RequestMapping(value = "subUserAuthorityQuery")
+	public String subUserAuthorityQuery(String userId) {
+		return userService.subUserAuthorityQuery(userId);
+	}
+
+	@RequestMapping(value = "subUserAuthorityUpdate")
+	public String subUserAuthorityUpdate(UserFarmAuthority userFarmAuthority) {
+		return userService.updateSubUserAuthority(userFarmAuthority);
+	}
+
+	@Override
+	public ModelAndView resolveException(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+		// TODO Auto-generated method stub
+		//ex.printStackTrace();
+		USER_CONTROLLER_LOG.error(ex.getMessage());
+		USER_CONTROLLER_LOG.error(handler, ex);
+		return new ModelAndView("error.jsp");
 	}
 }

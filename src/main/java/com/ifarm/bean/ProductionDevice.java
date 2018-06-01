@@ -21,7 +21,7 @@ public class ProductionDevice {
 	private String deviceDescription;
 
 	@Transient
-	private static SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+	private static transient SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 	public Integer getDeviceId() {
 		return deviceId;
@@ -76,7 +76,7 @@ public class ProductionDevice {
 	}
 
 	public ProductionDevice(String deviceVerification, String deviceType, String deviceCategory, String deviceDescription) {
-		this.deviceVerification = deviceCategory;
+		this.deviceVerification = deviceVerification;
 		this.deviceType = deviceType;
 		this.deviceCategory = deviceCategory;
 		this.deviceDescription = deviceDescription;

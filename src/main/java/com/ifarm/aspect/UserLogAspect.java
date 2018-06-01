@@ -46,7 +46,7 @@ public class UserLogAspect {
 					if (clazz.length == args.length) {
 						String value = m.getAnnotation(FarmControllerLog.class).value();
 						String param = m.getAnnotation(FarmControllerLog.class).param();
-						System.out.println(methodName + ":" + value + "--" + param);
+						log.info(methodName + ":" + value + "--" + param);
 						break;
 					}
 				}

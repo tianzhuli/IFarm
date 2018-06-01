@@ -23,7 +23,7 @@ public class User {
 	private String userBackImageUrl;
 	private String userImageUrl;
 	private String userSignature;
-	private Integer userRole;
+	private String userRole;
 
 	public User() {
 
@@ -151,11 +151,11 @@ public class User {
 		this.userSignature = userSignature;
 	}
 
-	public Integer getUserRole() {
+	public String getUserRole() {
 		return userRole;
 	}
 
-	public void setUserRole(Integer userRole) {
+	public void setUserRole(String userRole) {
 		this.userRole = userRole;
 	}
 

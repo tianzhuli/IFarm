@@ -12,8 +12,9 @@ import org.springframework.stereotype.Repository;
 import com.ifarm.bean.Manager;
 
 @Repository
+@SuppressWarnings("unchecked")
 public class ManagerDao extends BaseDao<Manager> {
-	@SuppressWarnings("unchecked")
+
 	public List<Manager> getAllManager() {
 		String hsql = "from Manager";
 		Session session = getSession();
@@ -32,7 +33,6 @@ public class ManagerDao extends BaseDao<Manager> {
 		return true;
 	}
 
-	@SuppressWarnings("unchecked")
 	public List<Manager> getManagerDynamicList(Manager manager) {
 		Session session = getSession();
 		DetachedCriteria criteria = DetachedCriteria.forClass(Manager.class);
@@ -55,5 +55,14 @@ public class ManagerDao extends BaseDao<Manager> {
 		Manager manager = (Manager) session.get(Manager.class, managerId);
 		session.evict(manager);
 		return manager;
+	}
+
+	public boolean login(String managerId, String managerPwd) {
+		Session session = getSession();
+		String hql = "select m.managerId from manager as m where m.managerId=? and managerPwd=?";
+		Query query = session.createSQLQuery(hql);
+		query.setString(0, managerId);
+		query.setString(1, managerPwd);
+		return query.list().size() > 0;
 	}
 }

@@ -2,6 +2,8 @@ package com.ifarm.interceptor;
 
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
@@ -11,7 +13,8 @@ import org.springframework.web.socket.server.support.HttpSessionHandshakeInterce
 import com.ifarm.util.CacheDataBase;
 
 public class ControlInterceptor extends HttpSessionHandshakeInterceptor {
-
+	
+	private static final Logger CONTROLINTERCEPTOR_LOGGER = LoggerFactory.getLogger(ControlInterceptor.class);
 	@Override
 	public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Map<String, Object> attributes)
 			throws Exception {
@@ -23,7 +26,7 @@ public class ControlInterceptor extends HttpSessionHandshakeInterceptor {
 			if (userId == null || signature == null) {
 				return false;
 			}
-			System.out.println("userId:" + userId);// 验证用户合法性
+			CONTROLINTERCEPTOR_LOGGER.info("userId:" + userId);// 验证用户合法性
 			servletRequest.getServletRequest().getSession().setAttribute("userId", userId);
 			if (!signature.equals(CacheDataBase.userSignature.get(userId))) {
 				servletRequest.getServletRequest().getSession().setAttribute("authState", false);

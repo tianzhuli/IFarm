@@ -105,6 +105,9 @@ public class ControlTaskUtil {
 					} else if (fields[i].getType() == Timestamp.class) {
 						fields[i].set(controlStrategy, Timestamp.valueOf(jsonObject.getString(key)));
 					} else {
+						if (key.equals("format")) {
+							continue;
+						}// 临时弥补一下
 						fields[i].set(controlStrategy, jsonObject.get(key));
 					}
 				

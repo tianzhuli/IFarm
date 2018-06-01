@@ -6,9 +6,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ifarm.bean.FarmCollector;
+import com.ifarm.bean.FarmCollectorDevice;
+import com.ifarm.bean.FarmControlDevice;
 import com.ifarm.bean.ProductionDevice;
 import com.ifarm.redis.util.ProductionDeviceUtil;
+import com.ifarm.service.FarmCollectorDeviceService;
 import com.ifarm.service.FarmCollectorService;
+import com.ifarm.service.FarmControlDeviceService;
 import com.ifarm.service.ProductionDeviceService;
 
 @RestController
@@ -19,9 +23,15 @@ public class DeviceController {
 
 	@Autowired
 	private ProductionDeviceUtil productionDeviceUtil;
-	
+
 	@Autowired
 	private FarmCollectorService farmCollectorService;
+
+	@Autowired
+	private FarmCollectorDeviceService farmCollectorDeviceService;
+
+	@Autowired
+	private FarmControlDeviceService farmControlDeviceService;
 
 	@RequestMapping("production")
 	String productionDevcie(String deviceType, String deviceCategory, String deviceDescription, @RequestParam("batch") int batch) {
@@ -33,13 +43,23 @@ public class DeviceController {
 		return productionDeviceUtil.getProductionDeviceType().toString();
 	}
 
-	@RequestMapping("addition")
+	@RequestMapping("check")
 	String deviceAppendToFarm(ProductionDevice productionDevice) {
-		return null;
+		return productionDeviceService.deviceCheck(productionDevice).toString();
 	}
-	
-	@RequestMapping("concentrator")
+
+	@RequestMapping("concentrator/addition")
 	String concentratorAppend(FarmCollector farmCollector) {
 		return farmCollectorService.saveFarmCollector(farmCollector);
+	}
+
+	@RequestMapping("collectorDevice/addition")
+	String collectorDeviceAddition(FarmCollectorDevice farmCollectorDevice) {
+		return farmCollectorDeviceService.saveCollectorDevice(farmCollectorDevice);
+	}
+
+	@RequestMapping("controlDevice/addition")
+	String controlDeviceAddition(FarmControlDevice farmControlDevice) {
+		return farmControlDeviceService.saveFarmControlDevice(farmControlDevice);
 	}
 }

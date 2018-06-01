@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.ifarm.annotation.AuthPassport;
 import com.ifarm.bean.Manager;
-import com.ifarm.bean.User;
+import com.ifarm.constant.SystemResultCodeEnum;
 import com.ifarm.nosql.service.UserLogMongoService;
 import com.ifarm.service.ManagerService;
 import com.ifarm.service.UserService;
@@ -35,8 +35,15 @@ public class ManagerController {
 	}
 
 	@RequestMapping(value = "allUser")
-	public String getAllUser(User user) {
-		return userService.getAllUserList(user);
+	public String getAllUser(String managerId) {
+		try {
+			return userService.getAllUserList();
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+			return SystemResultCodeEnum.ERROR;
+		}
+		
 	}
 
 	@RequestMapping(value = "updateManager")

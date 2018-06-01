@@ -8,10 +8,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 import org.springframework.web.multipart.commons.CommonsMultipartResolver;
@@ -22,7 +21,8 @@ import com.ifarm.service.UserLogService;
 import com.ifarm.util.FileUtil;
 
 @RequestMapping(value = "farm")
-@Controller
+@RestController
+@SuppressWarnings("rawtypes")
 public class FarmController {
 	@Autowired
 	private FarmService farmService;
@@ -31,30 +31,44 @@ public class FarmController {
 	private UserLogService userLogService;
 
 	@RequestMapping(value = "addFarm")
-	public @ResponseBody
-	String addFarmColletor(@RequestParam("userId") String userId, HttpServletRequest request, Farm farm) {
+	public String addFarmColletor(@RequestParam("userId") String userId, HttpServletRequest request, Farm farm) {
+		String message = farmService.saveFarm(farm);
+		userLogService.saveUserLog(request, farm, userId, "add", "farm", message);
+		return message;
+	}
+	
+	@RequestMapping(value = "manager/addFarm")
+	public String managerAddFarmColletor(@RequestParam("userId") String userId, HttpServletRequest request, Farm farm) {
 		String message = farmService.saveFarm(farm);
 		userLogService.saveUserLog(request, farm, userId, "add", "farm", message);
 		return message;
 	}
 
 	@RequestMapping(value = "updateFarmCollector")
-	public @ResponseBody
-	String updateFarmColletor(@RequestParam("userId") String userId, HttpServletRequest request, Farm farm) {
+	public String updateFarmColletor(@RequestParam("userId") String userId, HttpServletRequest request, Farm farm) {
 		String message = farmService.updateFarm(farm);
 		userLogService.saveUserLog(request, farm, userId, "update", "farm", message);
 		return message;
 	}
 
 	@RequestMapping(value = "getUserAroundFarmList")
-	public @ResponseBody
-	String getUserAroundFarmList(@RequestParam("aroundPersonId") String aroundPersonId) {
+	public String getUserAroundFarmList(@RequestParam("aroundPersonId") String aroundPersonId) {
 		return farmService.getUserAroundFarmList(aroundPersonId);
 	}
 
-	@RequestMapping(value = "getFarmColletorsList")
-	public @ResponseBody
-	String getFarmColletorsList(String userId) {
+	/**
+	 * 用户查询农场 很伤，历史遗留问题，这个url命名太蠢，以后系统重构的时候再改吧
+	 * 
+	 * @param userId
+	 * @return
+	 */
+	@RequestMapping(value = "getFarmCollectorsList")
+	public String getFarmList(String userId) {
+		return farmService.getFarmsList(userId);
+	}
+
+	@RequestMapping(value = "manager/getFarmList")
+	public String mangerGetFarmList(String userId) {
 		return farmService.getFarmsList(userId);
 	}
 
@@ -67,11 +81,10 @@ public class FarmController {
 	 * @param flag两种标准
 	 *            ，添加农场时图片添加为1,已经有农场了更新图片为2,添加农场时无图片为0
 	 */
-	@SuppressWarnings("rawtypes")
+
 	@RequestMapping(value = "uploadFarm")
-	public @ResponseBody
-	String uploadFarm(@RequestParam("flag") Integer flag, @RequestParam("userId") String userId, HttpServletRequest request, HttpServletResponse response,
-			Farm farm) {
+	public String uploadFarm(@RequestParam("flag") Integer flag, @RequestParam("userId") String userId, HttpServletRequest request,
+			HttpServletResponse response, Farm farm) {
 		if (flag == 0) {
 			return farmService.saveFarm(farm);
 		} else {

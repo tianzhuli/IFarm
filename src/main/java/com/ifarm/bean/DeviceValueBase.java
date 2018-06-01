@@ -3,6 +3,8 @@ package com.ifarm.bean;
 import java.io.Serializable;
 import java.sql.Timestamp;
 
+import javax.persistence.Transient;
+
 import com.ifarm.util.ConvertData;
 
 /**
@@ -14,6 +16,7 @@ public abstract class DeviceValueBase implements Serializable{
 	/**
 	 * 
 	 */
+	@Transient
 	private static final long serialVersionUID = 2837488291L;
 	
 	transient protected ConvertData convertData = new ConvertData();

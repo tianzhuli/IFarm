@@ -1,5 +1,6 @@
 package com.ifarm.bean;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.sql.Timestamp;
 
@@ -16,6 +17,7 @@ public class CollectorDeviceValue extends DeviceValueBase {
 	/**
 	 * 
 	 */
+	@Transient
 	private static final long serialVersionUID = -3614143073913290853L;
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,8 +33,10 @@ public class CollectorDeviceValue extends DeviceValueBase {
 	transient private byte[] rawPacket;
 
 	/**
-	 * @param size 数据包大小，目前暂无用处
-	 * @param arr 数据包
+	 * @param size
+	 *            数据包大小，目前暂无用处
+	 * @param arr
+	 *            数据包
 	 */
 	public void setCollectData(byte[] arr, int size) {
 		this.illumination = convertData.getdataType3(arr, 0);
@@ -116,6 +120,30 @@ public class CollectorDeviceValue extends DeviceValueBase {
 		}
 		Method method = CollectorDeviceValue.class.getDeclaredMethod("get" + paramType);
 		return (Double) method.invoke(this);
+	}
+
+	@Override
+	public String toString() {
+		// TODO Auto-generated method stub
+		StringBuilder stringBuilder = new StringBuilder();
+		Field[] fields = getClass().getDeclaredFields();
+		for (int i = 0; i < fields.length; i++) {
+			fields[i].setAccessible(true);
+			if (fields[i].getAnnotation(Transient.class) != null) {
+				continue;
+			}
+			stringBuilder.append(fields[i].getName() + ":");
+			try {
+				stringBuilder.append(fields[i].get(this) + ";");
+			} catch (IllegalArgumentException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IllegalAccessException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		return stringBuilder.toString();
 	}
 
 }

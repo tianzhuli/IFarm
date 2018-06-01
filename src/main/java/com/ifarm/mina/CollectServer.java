@@ -19,7 +19,7 @@ public class CollectServer {
 	private void start() throws IOException {
 		NioSocketAcceptor acceptor = new NioSocketAcceptor();
 		acceptor.getSessionConfig().setReadBufferSize(2048);
-		acceptor.getSessionConfig().setIdleTime(IdleStatus.BOTH_IDLE, 60);
+		acceptor.getSessionConfig().setIdleTime(IdleStatus.BOTH_IDLE, 120);
 		acceptor.setHandler(new CollectHandler());
 		// 设置日志记录器
 		acceptor.getFilterChain().addLast("logger", new LoggingFilter());

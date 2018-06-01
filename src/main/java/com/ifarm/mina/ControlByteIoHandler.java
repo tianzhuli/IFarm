@@ -34,7 +34,7 @@ public class ControlByteIoHandler extends IoHandlerAdapter implements IoSessionO
 		super.sessionCreated(session);
 		InetSocketAddress socketAddress = (InetSocketAddress) session.getRemoteAddress();
 		InetAddress address = socketAddress.getAddress();
-		System.out.println("client ip:" + address.getHostAddress());
+		inHandler_log.info("client ip:" + address.getHostAddress());
 		LinkedList<ControlCommand> linkedList = new LinkedList<ControlCommand>();
 		session.setAttribute("controlCommands", linkedList);
 
@@ -44,7 +44,7 @@ public class ControlByteIoHandler extends IoHandlerAdapter implements IoSessionO
 	public void sessionOpened(IoSession session) throws Exception {
 		// TODO Auto-generated method stub
 		super.sessionOpened(session);
-		System.out.println("io session:" + session);
+		inHandler_log.info("io session:" + session);
 	}
 
 	@Override

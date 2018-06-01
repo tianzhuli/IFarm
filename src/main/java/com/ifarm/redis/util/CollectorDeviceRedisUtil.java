@@ -13,9 +13,6 @@ import com.ifarm.bean.DeviceValueBase;
 @Component
 public class CollectorDeviceRedisUtil {
 	@Autowired
-	private RedisTemplate<String, String> redisTemplate;
-
-	@Autowired
 	@Qualifier("redisTemplate")
 	private RedisTemplate<String, String> valueRedisTemplate;
 
