@@ -1,26 +1,47 @@
 package com.ifarm.util;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Properties;
+
+import javax.sql.DataSource;
+
+import org.apache.commons.dbcp.BasicDataSourceFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ConDb {
-	private String url = "jdbc:mysql://localhost:3308/ifarm";
-	private String userName = "root";
-	private String password = "yls1911";
+	
+	public static DataSource dataSource;
+	
+	private static final Logger LOGGER = LoggerFactory.getLogger(ConDb.class);
+
+	static {
+		Properties properties = new Properties();
+		InputStream inStream = ConDb.class
+				.getResourceAsStream("dbcp.properties");
+		try {
+			properties.load(inStream);
+			LOGGER.info(properties.toString());
+			dataSource = BasicDataSourceFactory.createDataSource(properties);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (Exception e) {
+			e.printStackTrace();
+			// TODO: handle exception
+		}
+	}
 
 	public Connection openCon() {
-		Connection con = null;
+		Connection conn = null;
 		try {
-			Class.forName("com.mysql.jdbc.Driver");
-			con = DriverManager.getConnection(url, userName, password);
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			conn = dataSource.getConnection();
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		return con;
+		return conn;
 	}
 }

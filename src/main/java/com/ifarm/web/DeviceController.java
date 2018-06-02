@@ -39,8 +39,8 @@ public class DeviceController {
 	}
 
 	@RequestMapping("category")
-	String productionDeviceCategory() {
-		return productionDeviceUtil.getProductionDeviceType().toString();
+	String productionDeviceCategory(String deviceCategory) {
+		return productionDeviceUtil.getProductionDeviceType(deviceCategory).toString();
 	}
 
 	@RequestMapping("check")

@@ -1,12 +1,10 @@
 package com.ifarm.web;
 
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.List;
 
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -18,9 +16,11 @@ import com.ifarm.bean.FarmControlTerminal;
 import com.ifarm.bean.WFMControlTask;
 import com.ifarm.constant.ControlTaskEnum;
 import com.ifarm.nosql.service.CombinationControlTaskService;
+import com.ifarm.redis.util.ControlTaskRedisHelper;
+import com.ifarm.redis.util.UserRedisUtil;
+import com.ifarm.redis.util.WfmControlTaskRedisHelper;
 import com.ifarm.service.FarmControlSystemService;
 import com.ifarm.service.FarmControlTerminalService;
-import com.ifarm.util.CacheDataBase;
 import com.ifarm.util.ControlHandlerUtil;
 import com.ifarm.util.ControlTaskUtil;
 
@@ -35,9 +35,16 @@ public class FarmControlController {
 
 	@Autowired
 	private CombinationControlTaskService combinationControlTaskService;
-	
-	private static final Logger LOGGER = LoggerFactory.getLogger(FarmControlController.class);
-	
+
+	@Autowired
+	private ControlTaskRedisHelper controlTaskRedisHelper;
+
+	@Autowired
+	private WfmControlTaskRedisHelper wfmControlTaskRedisHelper;
+
+	@Autowired
+	private UserRedisUtil userRedisUtil;
+
 	@RequestMapping("controlSystemList")
 	public String farmControlSystemsDynamicList(FarmControlSystem farmControlSystem, String userId) {
 		return farmControlService.farmControlSystemsDynamicList(farmControlSystem, userId);
@@ -64,10 +71,10 @@ public class FarmControlController {
 	}
 
 	@RequestMapping("combinationControlHistory")
-	public String combinationControlHistory(String userId){
+	public String combinationControlHistory(String userId) {
 		return combinationControlTaskService.queryCombinationControlTask(userId);
 	}
-	
+
 	@RequestMapping("farmControlTaskStrategy")
 	public String farmControlTaskStrategy(ControlTask controlTask, String command) throws InterruptedException {
 		String userId = controlTask.getUserId();
@@ -75,49 +82,47 @@ public class FarmControlController {
 		if ("queryTasks".equals(command)) {
 			JSONArray array = new JSONArray();
 			String controlType = controlTask.getControlType();
-			if (CacheDataBase.controlTaskStateCache.containsKey(userId)) {
-				if (CacheDataBase.controlTaskStateCache.get(userId).size() > 0) {
-					if (controlType == null) {
-						ControlTaskUtil.queryTasks(CacheDataBase.controlTaskStateCache.get(userId), array);
-					} else {
-						ControlTaskUtil.queryTasks(CacheDataBase.controlTaskStateCache.get(userId), controlType, array);
-					}
-				}
+			List<ControlTask> list = controlTaskRedisHelper.getRedisListValues(userId);
+			if (controlType == null) {
+				ControlTaskUtil.queryTasks(list, array);
+			} else {
+				ControlTaskUtil.queryTasks(list, controlType, array);
 			}
-			if (CacheDataBase.wfmControlTaskStateCache.containsKey(userId)) {
-				if (CacheDataBase.wfmControlTaskStateCache.get(userId).size() > 0) {
-					if (controlType == null) {
-						ControlTaskUtil.queryWfmTasks(CacheDataBase.wfmControlTaskStateCache.get(userId), array);
-					} else {
-						ControlTaskUtil.queryWfmTasks(CacheDataBase.wfmControlTaskStateCache.get(userId), controlType, array);
-					}
-				}
+			List<WFMControlTask> wfmControlTasks = wfmControlTaskRedisHelper.getRedisListValues(userId);
+			if (controlType == null) {
+				ControlTaskUtil.queryWfmTasks(wfmControlTasks, array);
+			} else {
+				ControlTaskUtil.queryWfmTasks(wfmControlTasks, controlType, array);
 			}
 			resultJson.put("response", array);
 			return resultJson.toString();
 		} else if ("queryExecutingTasks".equals(command)) {
 			JSONArray array = new JSONArray();
-			if (CacheDataBase.controlTaskStateCache.containsKey(userId)) {
-				if (CacheDataBase.controlTaskStateCache.get(userId).size() > 0) {
-					ControlTaskUtil.queryExecutingTasks(CacheDataBase.controlTaskStateCache.get(userId), array);
-				}
-			}
-			if (CacheDataBase.wfmControlTaskStateCache.containsKey(userId)) {
+			/*
+			 * if (CacheDataBase.controlTaskStateCache.containsKey(userId)) { if
+			 * (CacheDataBase.controlTaskStateCache.get(userId).size() > 0) {
+			 * ControlTaskUtil
+			 * .queryExecutingTasks(CacheDataBase.controlTaskStateCache
+			 * .get(userId), array); } }
+			 */
+			ControlTaskUtil.queryExecutingTasks(controlTaskRedisHelper.getRedisListValues(userId), array);
+			ControlTaskUtil.queryWfmExecutingTasks(wfmControlTaskRedisHelper.getRedisListValues(userId), array);
+			/*if (CacheDataBase.wfmControlTaskStateCache.containsKey(userId)) {
 				if (CacheDataBase.wfmControlTaskStateCache.get(userId).size() > 0) {
 					ControlTaskUtil.queryWfmExecutingTasks(CacheDataBase.wfmControlTaskStateCache.get(userId), array);
 				}
-			}
+			}*/
 			resultJson.put("response", array);
 			return resultJson.toString();
 		} else if ("queryMessageCache".equals(command)) {
-			JSONArray jsonArray = new JSONArray();
-			LinkedBlockingQueue<String> list = CacheDataBase.userControlResultMessageCache.get(userId);
-			if (list != null && list.size() > 0) {
-				while (!list.isEmpty()) {
-					jsonArray.add(list.take());
-				}
-			}
-			resultJson.put("response", jsonArray);
+			/*
+			 * JSONArray jsonArray = new JSONArray();
+			 * LinkedBlockingQueue<String> list =
+			 * CacheDataBase.userControlResultMessageCache.get(userId); if (list
+			 * != null && list.size() > 0) { while (!list.isEmpty()) {
+			 * jsonArray.add(list.take()); } }
+			 */
+			resultJson.put("response", userRedisUtil.getUserControlResultMessageCache(userId));
 			return resultJson.toString();
 		} else if ("delete".equals(command)) {
 			String result = ControlHandlerUtil.revolationTask(userId, controlTask.getControllerLogId(), controlTask.getControlType());
@@ -137,7 +142,7 @@ public class FarmControlController {
 				}
 			} catch (Exception e) {
 				// TODO: handle exception
-				LOGGER.error("execute control error", e);
+				e.printStackTrace();
 				resultJson.put("response", ControlTaskEnum.ERROR);
 			}
 			return resultJson.toString();
@@ -156,7 +161,7 @@ public class FarmControlController {
 	public String getFarmControlOperationList(FarmControlTerminal farmControlTerminal) {
 		return farmControlTerminalService.getFarmControlOperationList(farmControlTerminal);
 	}
-	
+
 	@RequestMapping("terminal/addition")
 	public String terminalAddition(FarmControlTerminal farmControlTerminal) {
 		return farmControlTerminalService.saveFarmControlSystem(farmControlTerminal);

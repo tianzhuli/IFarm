@@ -1,9 +1,14 @@
 package com.ifarm.bean;
 
+import java.io.Serializable;
+
 import com.ifarm.util.ByteConvert;
 
-public class ControlCommand implements Comparable<ControlCommand> {
+public class ControlCommand implements Comparable<ControlCommand>, Serializable {
+	private static final long serialVersionUID = 7909691415613846968L;
+	private String commandId;
 	private ControlTask controlTask; // 一次完整使用控制操作的编号，包括开始到结束
+	private Integer taskId;
 	private String commandCategory; // 指令类别（立即执行、定时执行、手动停止、自动停止)
 	private Integer level; // 命令等级（手动停止为4最高等级，其次为自动停止、往下以此为立即执行和定时执行）
 	private Integer controlDeviceId;
@@ -11,6 +16,7 @@ public class ControlCommand implements Comparable<ControlCommand> {
 
 	public ControlCommand(ControlTask controlTask, String commandCategory, Integer level, int[] controlTerminalbits, Integer controlDeviceId) {
 		this.controlTask = controlTask;
+		this.taskId = controlTask.getControllerLogId();
 		this.commandCategory = commandCategory;
 		this.level = level;
 		this.controlTerminalbits = controlTerminalbits;
@@ -19,6 +25,7 @@ public class ControlCommand implements Comparable<ControlCommand> {
 
 	public ControlCommand(ControlTask controlTask, String commandCategory, Integer level, Integer controlDeviceId) {
 		this.controlTask = controlTask;
+		this.taskId = controlTask.getControllerLogId();
 		this.commandCategory = commandCategory;
 		this.level = level;
 		this.controlDeviceId = controlDeviceId;
@@ -26,6 +33,14 @@ public class ControlCommand implements Comparable<ControlCommand> {
 
 	public ControlCommand() {
 
+	}
+
+	public String getCommandId() {
+		return commandId;
+	}
+
+	public void setCommandId(String commandId) {
+		this.commandId = commandId;
 	}
 
 	public ControlTask getControlTask() {
@@ -66,6 +81,14 @@ public class ControlCommand implements Comparable<ControlCommand> {
 
 	public void setControlDeviceId(Integer controlDeviceId) {
 		this.controlDeviceId = controlDeviceId;
+	}
+
+	public Integer getTaskId() {
+		return taskId;
+	}
+
+	public void setTaskId(Integer taskId) {
+		this.taskId = taskId;
 	}
 
 	public byte[] commandToByte() {

@@ -1,20 +1,25 @@
 package com.ifarm.interceptor;
 
-import java.io.PrintWriter;
-
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import net.sf.json.JSONObject;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 
 import com.ifarm.constant.SystemResultCodeEnum;
-import com.ifarm.util.CacheDataBase;
+import com.ifarm.redis.util.UserRedisUtil;
+
 
 public class AuthInterceptor implements HandlerInterceptor {
-
+	
+	@Autowired
+	private UserRedisUtil userRedisUtil;
+	
 	private static final Log AUTHINTERCEPTOR_LOG = LogFactory.getLog(AuthInterceptor.class);
 
 	@Override
@@ -32,30 +37,21 @@ public class AuthInterceptor implements HandlerInterceptor {
 	@Override
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 		// TODO Auto-generated method stub
-		AUTHINTERCEPTOR_LOG.info(request.getRequestURI() + "---" + request.getParameterMap());
+		AUTHINTERCEPTOR_LOG.info(request.getRequestURI() + "---" + JSONObject.fromObject(request.getParameterMap()));
 		String signature = request.getParameter("signature");
 		String userId = request.getParameter("userId");
 		if (signature != null || userId != null) {
 			String sign = "";
-			sign = CacheDataBase.userSignature.get(userId);
+			//sign = CacheDataBase.userSignature.get(userId);
+			sign = userRedisUtil.getUserSignature(userId);
 			if (sign != null && signature != null && signature.equals(sign)) {
 				return true;
 			} else {
-				response.setContentType("text/html;charset=utf-8");
-				response.setCharacterEncoding("UTF-8");
-				PrintWriter out = response.getWriter();
-				out.print(SystemResultCodeEnum.EXPIRED_TOKEN);
-				out.flush();
-				out.close();
+				InterceptorOutputMessage.outStreamMeassge(response, SystemResultCodeEnum.EXPIRED_TOKEN);
 				return false;
 			}
 		} else {
-			response.setContentType("text/html;charset=utf-8");
-			response.setCharacterEncoding("UTF-8");
-			PrintWriter out = response.getWriter();
-			out.print(SystemResultCodeEnum.NO_USER);
-			out.flush();
-			out.close();
+			InterceptorOutputMessage.outStreamMeassge(response, SystemResultCodeEnum.NO_USER);
 			return false;
 		}
 	}

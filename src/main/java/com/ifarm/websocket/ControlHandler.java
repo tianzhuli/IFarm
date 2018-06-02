@@ -2,6 +2,8 @@ package com.ifarm.websocket;
 
 import java.io.IOException;
 
+import javax.annotation.PostConstruct;
+
 import net.sf.json.JSONArray;
 import net.sf.json.JSONException;
 import net.sf.json.JSONObject;
@@ -19,6 +21,7 @@ import com.ifarm.bean.ControlTask;
 import com.ifarm.bean.WFMControlTask;
 import com.ifarm.constant.ControlTaskEnum;
 import com.ifarm.nosql.service.CombinationControlTaskService;
+import com.ifarm.observer.UserControlData;
 import com.ifarm.observer.WebSocketObserver;
 import com.ifarm.service.FarmControlSystemService;
 import com.ifarm.util.CacheDataBase;
@@ -32,6 +35,9 @@ public class ControlHandler extends TextWebSocketHandler implements WebSocketObs
 	private FarmControlSystemService farmControlSystemService;
 	private CombinationControlTaskService combinationControlTaskService;
 
+	@Autowired
+	private UserControlData userControlData;
+	
 	public CombinationControlTaskService getCombinationControlTaskService() {
 		return combinationControlTaskService;
 	}
@@ -45,8 +51,12 @@ public class ControlHandler extends TextWebSocketHandler implements WebSocketObs
 	public void setFarmControlSystemService(FarmControlSystemService farmControlSystemService) {
 		this.farmControlSystemService = farmControlSystemService;
 	}
-
-	public ControlHandler() {
+	
+	@PostConstruct
+	public void initControlHandler() {
+		if (CacheDataBase.userControlData == null) {
+			CacheDataBase.userControlData = userControlData;
+		}
 		CacheDataBase.userControlData.registerObserver(Constants.userControlHandler, this);
 	}
 
@@ -144,17 +154,19 @@ public class ControlHandler extends TextWebSocketHandler implements WebSocketObs
 					WFMControlTask wfmControlTask = ControlTaskUtil.fromJson(messageJson);
 					wfmControlTask.setUserId(userId);
 					resultJson = ControlHandlerUtil.wfmHandlerControlMessage(wfmControlTask, userId, farmControlSystemService);
-					controlHandler_log.info("wfmControlTaskStateCache:" + CacheDataBase.wfmControlTaskStateCache);
+					//controlHandler_log.info("wfmControlTaskStateCache:" + CacheDataBase.wfmControlTaskStateCache);
 				} else {
 					ControlTask controlTask = ControlTask.fromJson(messageJson);
 					controlTask.setUserId(userId);
 					resultJson = ControlHandlerUtil.handlerControlMessage(controlTask, userId, farmControlSystemService);
-					controlHandler_log.info("controlTaskStateCache:" + CacheDataBase.controlTaskStateCache);
+					// controlHandler_log.info("controlTaskStateCache:" +
+					// CacheDataBase.controlTaskStateCache);
 				}
-				controlHandler_log.info("controlCommandCache" + CacheDataBase.controlCommandCache);
+				// controlHandler_log.info("controlCommandCache" +
+				// CacheDataBase.controlCommandCache);
 			} catch (Exception e) {
 				// TODO: handle exception
-				controlHandler_log.error("control handler error",e);
+				controlHandler_log.error("control handler", e);
 				resultJson.put("response", ControlTaskEnum.ERROR);
 			}
 		}

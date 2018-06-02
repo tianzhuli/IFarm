@@ -5,8 +5,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.PriorityBlockingQueue;
 
 import net.sf.json.JSONObject;
 
@@ -89,27 +87,36 @@ public class ControlHandlerUtil {
 		try {
 			controlHandlerUtil_log.info("撤销的任务：" + controlId);
 			if ("wfm".equals(controlType)) {
-				LinkedBlockingQueue<WFMControlTask> wfmTasks = CacheDataBase.wfmControlTaskStateCache.get(userId);
-				Iterator<WFMControlTask> wfmIterator = wfmTasks.iterator();
-				while (wfmIterator.hasNext()) {
-					WFMControlTask task = wfmIterator.next();
-					if (task.getControllerLogId().equals(controlId)) {
-						wfmTasks.remove(task);
-						CacheDataBase.wTaskService.deleteControlTask(task);
-						jsonObject.put("response", ControlTaskEnum.SUCCESS);
-					}
+				/*
+				 * LinkedBlockingQueue<WFMControlTask> wfmTasks =
+				 * CacheDataBase.wfmControlTaskStateCache.get(userId);
+				 * Iterator<WFMControlTask> wfmIterator = wfmTasks.iterator();
+				 * while (wfmIterator.hasNext()) { WFMControlTask task =
+				 * wfmIterator.next(); if
+				 * (task.getControllerLogId().equals(controlId)) {
+				 * wfmTasks.remove(task);
+				 * CacheDataBase.wTaskService.deleteControlTask(task);
+				 * jsonObject.put("response", ControlTaskEnum.SUCCESS); } }
+				 */
+				if (CacheDataBase.wfmControlTaskRedisHelper.removeWfmControlTask(userId, controlId)) {
+					CacheDataBase.wTaskService.deleteControlTask(controlId);
+					jsonObject.put("response", ControlTaskEnum.SUCCESS);
 				}
 			} else {
-				LinkedBlockingQueue<ControlTask> tasks = CacheDataBase.controlTaskStateCache.get(userId);
-				Iterator<ControlTask> iterator = tasks.iterator();
-				while (iterator.hasNext()) {
-					ControlTask task = iterator.next();
-					if (task.getControllerLogId().equals(controlId)) {
-						tasks.remove(task);
-						CacheDataBase.taskService.deleteControlTask(task);
-						jsonObject.put("response", ControlTaskEnum.SUCCESS);
-					}
+				if (CacheDataBase.controlTaskRedisHelper.removeControlTask(userId, controlId)) {
+					CacheDataBase.taskService.deleteControlTask(controlId);
+					jsonObject.put("response", ControlTaskEnum.SUCCESS);
 				}
+				/*
+				 * LinkedBlockingQueue<ControlTask> tasks =
+				 * CacheDataBase.controlTaskStateCache.get(userId);
+				 * Iterator<ControlTask> iterator = tasks.iterator(); while
+				 * (iterator.hasNext()) { ControlTask task = iterator.next(); if
+				 * (task.getControllerLogId().equals(controlId)) {
+				 * tasks.remove(task);
+				 * CacheDataBase.taskService.deleteControlTask(task);
+				 * jsonObject.put("response", ControlTaskEnum.SUCCESS); } }
+				 */
 			}
 		} catch (Exception e) {
 			// TODO: handle exception
@@ -129,30 +136,35 @@ public class ControlHandlerUtil {
 	 */
 	public static boolean judgeControlTaskConflict(ControlTask controlTask, boolean flat) {
 		String userId = controlTask.getUserId();
-		LinkedBlockingQueue<ControlTask> controlTasks = CacheDataBase.controlTaskStateCache.get(userId);
-		if (controlTasks != null && controlTasks.size() > 0) {
-			Iterator<ControlTask> iterator = controlTasks.iterator();
-			while (iterator.hasNext()) {
-				ControlTask task = iterator.next();
-				Integer systemId = controlTask.getSystemId();
-				Integer deviceId = controlTask.getControlDeviceId();
-				if (flat) {
-					if (task.equals(controlTask)) {
-						continue;
-					}
-				}
-				if ((systemId != null && systemId.equals(task.getSystemId())) || (deviceId != null && deviceId.equals(task.getControlDeviceId()))) {
+		Object lock = CacheDataBase.controlTaskRedisHelper.getLock(userId);
+		synchronized (lock) {
+			List<ControlTask> controlTasks = CacheDataBase.controlTaskRedisHelper.getRedisListValues(userId);
+			// LinkedBlockingQueue<ControlTask> controlTasks =
+			// CacheDataBase.controlTaskStateCache.get(userId);
+			if (controlTasks.size() > 0) {
+				Iterator<ControlTask> iterator = controlTasks.iterator();
+				while (iterator.hasNext()) {
+					ControlTask task = iterator.next();
+					Integer systemId = controlTask.getSystemId();
+					Integer deviceId = controlTask.getControlDeviceId();
 					if (flat) {
-						if (ControlTaskEnum.EXECUTING.equals(task.getTaskState()) || ControlTaskEnum.BLOCKING.equals(task.getTaskState())) {
-							return true;
+						if (task.equals(controlTask)) {
+							continue;
 						}
 					}
-					long originalTime = task.getStartExecutionTime().getTime() / 1000;
-					long newestTime = controlTask.getStartExecutionTime().getTime() / 1000;
-					boolean compare = (newestTime > (originalTime + task.getExecutionTime() + waitTime))
-							| ((newestTime + controlTask.getExecutionTime() + waitTime) < originalTime);
-					if (!compare) { // 时间冲突
-						return true;
+					if ((systemId != null && systemId.equals(task.getSystemId())) || (deviceId != null && deviceId.equals(task.getControlDeviceId()))) {
+						if (flat) {
+							if (ControlTaskEnum.EXECUTING.equals(task.getTaskState()) || ControlTaskEnum.BLOCKING.equals(task.getTaskState())) {
+								return true;
+							}
+						}
+						long originalTime = task.getStartExecutionTime().getTime() / 1000;
+						long newestTime = controlTask.getStartExecutionTime().getTime() / 1000;
+						boolean compare = (newestTime > (originalTime + task.getExecutionTime() + waitTime))
+								| ((newestTime + controlTask.getExecutionTime() + waitTime) < originalTime);
+						if (!compare) { // 时间冲突
+							return true;
+						}
 					}
 				}
 			}
@@ -170,117 +182,136 @@ public class ControlHandlerUtil {
 	 */
 	public static JSONObject handlerControlMessage(ControlTask controlTask, String userId, FarmControlSystemService farmControlSystemService)
 			throws Exception {
-		JSONObject object = new JSONObject();
-		object.put("response", ControlTaskEnum.ERROR);
+		JSONObject json = new JSONObject();
+		json.put("response", ControlTaskEnum.ERROR);
 		String commandCategory = controlTask.getCommandCategory();
-		LinkedBlockingQueue<ControlTask> controlTasks = CacheDataBase.controlTaskStateCache.get(userId);
-		if ("ImmediateExecution".equals(commandCategory)) {
-			Timestamp timestamp = Timestamp.valueOf(getSimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
-			controlTask.setTaskTime(timestamp);
-			controlTask.setStartExecutionTime(timestamp); // 立马执行
-			controlTask.setLevel(2);
-			controlTask.setTaskState(ControlTaskEnum.BLOCKING); // 任务下发不代表已经开始运行
-			farmControlSystemService.produceControlTaskCommand(controlTask); // 更新deviceId和collectorId等生成bits数组
-			if (controlTasks != null && controlTasks.size() > 0) {
-				Iterator<ControlTask> iterator = controlTasks.iterator();
-				while (iterator.hasNext()) {
-					ControlTask task = iterator.next();
-					Integer systemId = controlTask.getSystemId();
-					Integer deviceId = controlTask.getControlDeviceId();
-					if (systemId != null && systemId.equals(task.getSystemId()) || (deviceId != null && deviceId.equals(task.getControlDeviceId()))) {
-						if (ControlTaskEnum.EXECUTING.equals(task.getTaskState()) || ControlTaskEnum.BLOCKING.equals(task.getTaskState())) {
-							object.put("response", ControlTaskEnum.CONFLICT_CURRENT);
-							return object;
-						} else if (ControlTaskEnum.WAITTING.equals(task.getTaskState())) {
-							long originalTime = task.getStartExecutionTime().getTime() / 1000;
-							long newestTime = controlTask.getStartExecutionTime().getTime() / 1000;
-							boolean compare = (newestTime > (originalTime + task.getExecutionTime() + waitTime))
-									| ((newestTime + controlTask.getExecutionTime() + waitTime) < originalTime);
-							if (!compare) { // 时间冲突
-								object.put("response", ControlTaskEnum.CONFLICT);
-								return object;
+		Object lock = CacheDataBase.controlTaskRedisHelper.getLock(userId);
+		synchronized (lock) {
+			List<ControlTask> controlTasks = CacheDataBase.controlTaskRedisHelper.getRedisListValues(userId);
+			if ("ImmediateExecution".equals(commandCategory)) {
+				Timestamp timestamp = Timestamp.valueOf(getSimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
+				controlTask.setTaskTime(timestamp);
+				controlTask.setStartExecutionTime(timestamp); // 立马执行
+				controlTask.setLevel(2);
+				controlTask.setTaskState(ControlTaskEnum.BLOCKING); // 任务下发不代表已经开始运行
+				farmControlSystemService.produceControlTaskCommand(controlTask); // 更新deviceId和collectorId等生成bits数组
+				if (controlTasks.size() > 0) {
+					Iterator<ControlTask> iterator = controlTasks.iterator();
+					while (iterator.hasNext()) {
+						ControlTask task = iterator.next();
+						Integer systemId = controlTask.getSystemId();
+						Integer deviceId = controlTask.getControlDeviceId();
+						if (systemId != null && systemId.equals(task.getSystemId())
+								|| (deviceId != null && deviceId.equals(task.getControlDeviceId()))) {
+							if (ControlTaskEnum.EXECUTING.equals(task.getTaskState()) || ControlTaskEnum.BLOCKING.equals(task.getTaskState())) {
+								json.put("response", ControlTaskEnum.CONFLICT_CURRENT);
+								return json;
+							} else if (ControlTaskEnum.WAITTING.equals(task.getTaskState())) {
+								long originalTime = task.getStartExecutionTime().getTime() / 1000;
+								long newestTime = controlTask.getStartExecutionTime().getTime() / 1000;
+								boolean compare = (newestTime > (originalTime + task.getExecutionTime() + waitTime))
+										| ((newestTime + controlTask.getExecutionTime() + waitTime) < originalTime);
+								if (!compare) { // 时间冲突
+									json.put("response", ControlTaskEnum.CONFLICT);
+									return json;
+								}
 							}
 						}
 					}
 				}
-			}
-			CacheDataBase.taskService.saveControlTask(controlTask);
-			if (controlTasks != null) {
-				controlTasks.add(controlTask);
-				object.put("response", ControlTaskEnum.RUNNING);
-			}
-			ControlCommand command = controlTask.buildCommand("execution"); // 将命令添加到缓存
-			Long collectorId = controlTask.getCollectorId();
-			if (collectorId != null) {
-				PriorityBlockingQueue<ControlCommand> pQueue = CacheDataBase.controlCommandCache.get(collectorId);
-				if (pQueue != null) {
-					pQueue.add(command);
+				CacheDataBase.taskService.saveControlTask(controlTask);
+				/*
+				 * if (controlTasks != null) { controlTasks.add(controlTask);
+				 * json.put("response", ControlTaskEnum.RUNNING); }
+				 */
+				CacheDataBase.controlTaskRedisHelper.addRedisListValue(userId, controlTask);
+				json.put("response", ControlTaskEnum.RUNNING);
+				ControlCommand command = controlTask.buildCommand("execution"); // 将命令添加到缓存
+				Long collectorId = controlTask.getCollectorId();
+				if (collectorId != null) {
+					CacheDataBase.commandRedisHelper.setLockRedisListValue(collectorId.toString(), command);
+					/*
+					 * PriorityBlockingQueue<ControlCommand> pQueue =
+					 * CacheDataBase.controlCommandCache.get(collectorId); if
+					 * (pQueue != null) { pQueue.add(command); }
+					 */
 				}
-			}
-			CacheDataBase.ioControlData.notifyObservers(collectorId); // 推送到长连接设备
-		} else if ("fixedTimeExecution".equals(commandCategory)) { // 暂时还未考虑时间冲突
-			if (controlTask.getStartExecutionTime()==null) {
-				object.put("response", ControlTaskEnum.ERROR);
-				return object;
-			}
-			controlTask.setLevel(1);
-			controlTask.setTaskTime(Timestamp.valueOf(getSimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date())));
-			controlTask.setTaskState(ControlTaskEnum.WAITTING);
-			farmControlSystemService.produceControlTaskCommand(controlTask); // 更新deviceId和collectorId等生成bits数组
-			if (judgeControlTaskConflict(controlTask, false)) {
-				object.put("response", ControlTaskEnum.CONFLICT);
-				return object;
-			}
-			CacheDataBase.taskService.saveControlTask(controlTask);
-			if (controlTasks != null) { // 添加到cache
-				controlTasks.add(controlTask);
-				object.put("response", ControlTaskEnum.RUNNING);
-			}
-		} else if ("handStop".equals(commandCategory)) {
-			object.put("response", ControlTaskEnum.NO_TASK);
-			Integer controllerLogId = controlTask.getControllerLogId();
-			if (controlTasks != null) {
-				Iterator<ControlTask> iterator = controlTasks.iterator();
-				while (iterator.hasNext()) {
-					ControlTask cTask = iterator.next();
-					if (controllerLogId != null && controllerLogId.equals(cTask.getControllerLogId())) {
-						controlTask = cTask;
-						controlTask.setLevel(4);
-						controlTask.setStartStopTime(System.currentTimeMillis() / 1000);
-						ControlCommand command = controlTask.buildCommand("stop");
-						Long collectorId = controlTask.getCollectorId();
-						if (collectorId != null) {
-							PriorityBlockingQueue<ControlCommand> pQueue = CacheDataBase.controlCommandCache.get(collectorId);
-							if (pQueue != null) {
-								pQueue.add(command);
+				CacheDataBase.ioControlData.notifyObservers(collectorId); // 推送到长连接设备
+			} else if ("fixedTimeExecution".equals(commandCategory)) { // 暂时还未考虑时间冲突
+				if (controlTask.getStartExecutionTime() == null) {
+					json.put("response", ControlTaskEnum.ERROR);
+					return json;
+				}
+				controlTask.setLevel(1);
+				controlTask.setTaskTime(Timestamp.valueOf(getSimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date())));
+				controlTask.setTaskState(ControlTaskEnum.WAITTING);
+				farmControlSystemService.produceControlTaskCommand(controlTask); // 更新deviceId和collectorId等生成bits数组
+				if (judgeControlTaskConflict(controlTask, false)) {
+					json.put("response", ControlTaskEnum.CONFLICT);
+					return json;
+				}
+				CacheDataBase.taskService.saveControlTask(controlTask);
+				/*
+				 * if (controlTasks != null) { // 添加到cache
+				 * controlTasks.add(controlTask); json.put("response",
+				 * ControlTaskEnum.RUNNING); }
+				 */
+				CacheDataBase.controlTaskRedisHelper.addRedisListValue(userId, controlTask);
+			} else if ("handStop".equals(commandCategory)) {
+				json.put("response", ControlTaskEnum.NO_TASK);
+				Integer controllerLogId = controlTask.getControllerLogId();
+				if (controlTasks.size() > 0) {
+					Iterator<ControlTask> iterator = controlTasks.iterator();
+					while (iterator.hasNext()) {
+						ControlTask cTask = iterator.next();
+						if (controllerLogId != null && controllerLogId.equals(cTask.getControllerLogId())) {
+							controlTask = cTask;
+							controlTask.setLevel(4);
+							controlTask.setStartStopTime(System.currentTimeMillis() / 1000);
+							ControlCommand command = controlTask.buildCommand("stop");
+							Long collectorId = controlTask.getCollectorId();
+							if (collectorId != null) {
+								/*
+								 * PriorityBlockingQueue<ControlCommand> pQueue
+								 * = CacheDataBase
+								 * .controlCommandCache.get(collectorId); if
+								 * (pQueue != null) { pQueue.add(command);
+								 * controlTask.setTaskState
+								 * (ControlTaskEnum.STOPPING);
+								 * CacheDataBase.ioControlData
+								 * .notifyObservers(collectorId); // 推送到长连接设备
+								 * object.put("response",
+								 * ControlTaskEnum.RUNNING); }
+								 */
+								CacheDataBase.commandRedisHelper.setLockRedisListValue(collectorId.toString(), command);
 								controlTask.setTaskState(ControlTaskEnum.STOPPING);
 								CacheDataBase.ioControlData.notifyObservers(collectorId); // 推送到长连接设备
-								object.put("response", ControlTaskEnum.RUNNING);
+								json.put("response", ControlTaskEnum.RUNNING);
 							}
+							break;
 						}
-						break;
 					}
+				} else {
+					controlHandlerUtil_log.error("该用户无任务:" + userId);
 				}
-			} else {
-				controlHandlerUtil_log.error("该用户无任务:" + userId);
-			}
-		} else if ("query".equals(commandCategory)) {
-			object.put("response", ControlTaskEnum.NO_TASK);
-			Integer controllerLogId = controlTask.getControllerLogId();
-			if (controlTasks != null) {
-				Iterator<ControlTask> iterator = controlTasks.iterator();
-				while (iterator.hasNext()) {
-					ControlTask cTask = iterator.next();
-					if (controllerLogId != null && controllerLogId.equals(cTask.getControllerLogId())) {
-						object.put("response", cTask.buildQueryResult());
-						return object;
+			} else if ("query".equals(commandCategory)) {
+				json.put("response", ControlTaskEnum.NO_TASK);
+				Integer controllerLogId = controlTask.getControllerLogId();
+				if (controlTasks.size() > 0) {
+					Iterator<ControlTask> iterator = controlTasks.iterator();
+					while (iterator.hasNext()) {
+						ControlTask cTask = iterator.next();
+						if (controllerLogId != null && controllerLogId.equals(cTask.getControllerLogId())) {
+							json.put("response", cTask.buildQueryResult());
+							return json;
+						}
 					}
+				} else {
+					controlHandlerUtil_log.error("该用户无任务:" + userId);
 				}
-			} else {
-				controlHandlerUtil_log.error("该用户无任务:" + userId);
 			}
 		}
-		return object;
+		return json;
 	}
 
 	/**
@@ -297,25 +328,39 @@ public class ControlHandlerUtil {
 		try {
 			controlHandlerUtil_log.info("撤销的任务：" + controlId);
 			if ("wfm".equals(controlType)) {
-				LinkedBlockingQueue<WFMControlTask> wfmTasks = CacheDataBase.wfmControlTaskStateCache.get(userId);
-				Iterator<WFMControlTask> wfmIterator = wfmTasks.iterator();
-				while (wfmIterator.hasNext()) {
-					WFMControlTask task = wfmIterator.next();
-					if (task.getControllerLogId().equals(controlId)) {
-						task.setUserConfirmation(userConfirmation);
-						jsonObject.put("response", ControlTaskEnum.SUCCESS);
+				Object lock = CacheDataBase.wfmControlTaskRedisHelper.getLock(userId);
+				synchronized (lock) {
+					List<WFMControlTask> wfmControlTasks = CacheDataBase.wfmControlTaskRedisHelper.getRedisListValues(userId);
+					for (int i = 0; i < wfmControlTasks.size(); i++) {
+						WFMControlTask task = wfmControlTasks.get(i);
+						if (task.getControllerLogId().equals(controlId)) {
+							task.setUserConfirmation(userConfirmation);
+							jsonObject.put("response", ControlTaskEnum.SUCCESS);
+						}
 					}
 				}
 			} else {
-				LinkedBlockingQueue<ControlTask> tasks = CacheDataBase.controlTaskStateCache.get(userId);
-				Iterator<ControlTask> iterator = tasks.iterator();
-				while (iterator.hasNext()) {
-					ControlTask task = iterator.next();
-					if (task.getControllerLogId().equals(controlId)) {
-						task.setUserConfirmation(userConfirmation);
-						jsonObject.put("response", ControlTaskEnum.SUCCESS);
+				Object lock = CacheDataBase.controlTaskRedisHelper.getLock(userId);
+				synchronized (lock) {
+					List<ControlTask> tasks = CacheDataBase.controlTaskRedisHelper.getRedisListValues(userId);
+					for (int i = 0; i < tasks.size(); i++) {
+						ControlTask task = tasks.get(i);
+						if (task.getControllerLogId().equals(controlId)) {
+							task.setUserConfirmation(userConfirmation);
+							CacheDataBase.controlTaskRedisHelper.setRedisListIndexValue(userId, task, i);
+							jsonObject.put("response", ControlTaskEnum.SUCCESS);
+						}
 					}
 				}
+				/*
+				 * LinkedBlockingQueue<ControlTask> tasks =
+				 * CacheDataBase.controlTaskStateCache.get(userId);
+				 * Iterator<ControlTask> iterator = tasks.iterator(); while
+				 * (iterator.hasNext()) { ControlTask task = iterator.next(); if
+				 * (task.getControllerLogId().equals(controlId)) {
+				 * task.setUserConfirmation(userConfirmation);
+				 * jsonObject.put("response", ControlTaskEnum.SUCCESS); } }
+				 */
 			}
 		} catch (Exception e) {
 			// TODO: handle exception
@@ -410,11 +455,11 @@ public class ControlHandlerUtil {
 	 */
 	public static boolean wfmJudgeControlTaskConflict(WFMControlTask controlTask, boolean flat) {
 		String userId = controlTask.getUserId();
-		LinkedBlockingQueue<WFMControlTask> controlTasks = CacheDataBase.wfmControlTaskStateCache.get(userId);
-		if (controlTasks != null && controlTasks.size() > 0) {
-			Iterator<WFMControlTask> iterator = controlTasks.iterator();
-			while (iterator.hasNext()) {
-				WFMControlTask task = iterator.next();
+		Object lock = CacheDataBase.wfmControlTaskRedisHelper.getLock(userId);
+		synchronized (lock) {
+			List<WFMControlTask> controlTasks = CacheDataBase.wfmControlTaskRedisHelper.getRedisListValues(userId);
+			for (int i = 0; i < controlTasks.size(); i++) {
+				WFMControlTask task = controlTasks.get(i);
 				Integer systemId = controlTask.getSystemId();
 				if (flat) {
 					if (task.equals(controlTask)) {
@@ -453,78 +498,71 @@ public class ControlHandlerUtil {
 		JSONObject object = new JSONObject();
 		object.put("response", ControlTaskEnum.ERROR);
 		String commandCategory = wfmControlTask.getCommandCategory();
-		LinkedBlockingQueue<WFMControlTask> wfmControlTasks = CacheDataBase.wfmControlTaskStateCache.get(userId);
-		if ("ImmediateExecution".equals(commandCategory)) {
-			Timestamp timestamp = Timestamp.valueOf(getSimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
-			wfmControlTask.setTaskTime(timestamp);
-			wfmControlTask.setStartExecutionTime(timestamp); // 立马执行
-			wfmControlTask.setLevel(2);
-			wfmControlTask.setTaskState(ControlTaskEnum.BLOCKING); // 任务下发不代表已经开始运行
-			farmControlSystemService.produceWFMControlTaskCommand(wfmControlTask); // 更新deviceId和collectorId等生成bits数组
-			if (wfmControlTasks != null && wfmControlTasks.size() > 0) {
-				Iterator<WFMControlTask> iterator = wfmControlTasks.iterator();
-				while (iterator.hasNext()) {
-					WFMControlTask task = iterator.next();
-					Integer systemId = wfmControlTask.getSystemId();
-					if (systemId != null && systemId.equals(task.getSystemId())) {
-						if (ControlTaskEnum.EXECUTING.equals(task.getTaskState()) || ControlTaskEnum.BLOCKING.equals(task.getTaskState())) {
-							object.put("response", ControlTaskEnum.CONFLICT_CURRENT);
-							return object;
-						} else if (ControlTaskEnum.WAITTING.equals(task.getTaskState())) {
-							long originalTime = task.getStartExecutionTime().getTime() / 1000;
-							long newestTime = wfmControlTask.getStartExecutionTime().getTime() / 1000;
-							boolean compare = (newestTime > (originalTime + task.getExecutionTime() + waitTime))
-									| ((newestTime + wfmControlTask.getExecutionTime() + waitTime) < originalTime);
-							if (!compare) { // 时间冲突
-								object.put("response", ControlTaskEnum.CONFLICT);
+		Object lock = CacheDataBase.wfmControlTaskRedisHelper.getLock(userId);
+		synchronized (lock) {
+			List<WFMControlTask> wfmControlTasks = CacheDataBase.wfmControlTaskRedisHelper.getRedisListValues(userId);
+			if ("ImmediateExecution".equals(commandCategory)) {
+				Timestamp timestamp = Timestamp.valueOf(getSimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
+				wfmControlTask.setTaskTime(timestamp);
+				wfmControlTask.setStartExecutionTime(timestamp); // 立马执行
+				wfmControlTask.setLevel(2);
+				wfmControlTask.setTaskState(ControlTaskEnum.BLOCKING); // 任务下发不代表已经开始运行
+				farmControlSystemService.produceWFMControlTaskCommand(wfmControlTask); // 更新deviceId和collectorId等生成bits数组
+				if (wfmControlTasks != null && wfmControlTasks.size() > 0) {
+					Iterator<WFMControlTask> iterator = wfmControlTasks.iterator();
+					while (iterator.hasNext()) {
+						WFMControlTask task = iterator.next();
+						Integer systemId = wfmControlTask.getSystemId();
+						if (systemId != null && systemId.equals(task.getSystemId())) {
+							if (ControlTaskEnum.EXECUTING.equals(task.getTaskState()) || ControlTaskEnum.BLOCKING.equals(task.getTaskState())) {
+								object.put("response", ControlTaskEnum.CONFLICT_CURRENT);
 								return object;
+							} else if (ControlTaskEnum.WAITTING.equals(task.getTaskState())) {
+								long originalTime = task.getStartExecutionTime().getTime() / 1000;
+								long newestTime = wfmControlTask.getStartExecutionTime().getTime() / 1000;
+								boolean compare = (newestTime > (originalTime + task.getExecutionTime() + waitTime))
+										| ((newestTime + wfmControlTask.getExecutionTime() + waitTime) < originalTime);
+								if (!compare) { // 时间冲突
+									object.put("response", ControlTaskEnum.CONFLICT);
+									return object;
+								}
 							}
 						}
 					}
 				}
-			}
-			CacheDataBase.wTaskService.saveControlTask(wfmControlTask);
-			if (wfmControlTasks != null) {
-				wfmControlTasks.add(wfmControlTask);
+				CacheDataBase.wTaskService.saveControlTask(wfmControlTask);
+				CacheDataBase.wfmControlTaskRedisHelper.addRedisListValue(userId, wfmControlTask);
 				object.put("response", ControlTaskEnum.RUNNING);
-			}
-			List<WFMControlCommand> list = wfmControlTask.getWfmControlCommands();
-			for (int i = 0; i < list.size(); i++) {
-				WFMControlCommand command = list.get(i);
-				Long collectorId = command.getCollectorId();
-				if (collectorId != null) {
-					PriorityBlockingQueue<ControlCommand> pQueue = CacheDataBase.controlCommandCache.get(collectorId);
-					if (pQueue != null) {
-						pQueue.add(command);
+				List<WFMControlCommand> list = wfmControlTask.getWfmControlCommands();
+				for (int i = 0; i < list.size(); i++) {
+					WFMControlCommand command = list.get(i);
+					Long collectorId = command.getCollectorId();
+					if (collectorId != null) {
+						CacheDataBase.commandRedisHelper.setLockRedisListValue(collectorId.toString(), command);
 					}
+					CacheDataBase.ioControlData.notifyObservers(collectorId); // 推送到长连接设备
 				}
-				CacheDataBase.ioControlData.notifyObservers(collectorId); // 推送到长连接设备
-			}
-		} else if ("fixedTimeExecution".equals(commandCategory)) { // 暂时还未考虑时间冲突
-			if (wfmControlTask.getStartExecutionTime()==null) {
-				object.put("response", ControlTaskEnum.ERROR);
-				return object;
-			}
-			wfmControlTask.setLevel(1);
-			wfmControlTask.setTaskTime(Timestamp.valueOf(getSimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date())));
-			wfmControlTask.setTaskState(ControlTaskEnum.WAITTING);
-			farmControlSystemService.produceWFMControlTaskCommand(wfmControlTask); // 更新deviceId和collectorId等生成bits数组
-			if (wfmJudgeControlTaskConflict(wfmControlTask, false)) {
-				object.put("response", ControlTaskEnum.CONFLICT);
-				return object;
-			}
-			CacheDataBase.wTaskService.saveControlTask(wfmControlTask);
-			if (wfmControlTasks != null) { // 添加到cache
-				wfmControlTasks.add(wfmControlTask);
+			} else if ("fixedTimeExecution".equals(commandCategory)) { // 暂时还未考虑时间冲突
+				if (wfmControlTask.getStartExecutionTime() == null) {
+					object.put("response", ControlTaskEnum.ERROR);
+					return object;
+				}
+				wfmControlTask.setLevel(1);
+				wfmControlTask.setTaskTime(Timestamp.valueOf(getSimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date())));
+				wfmControlTask.setTaskState(ControlTaskEnum.WAITTING);
+				farmControlSystemService.produceWFMControlTaskCommand(wfmControlTask); // 更新deviceId和collectorId等生成bits数组
+				if (wfmJudgeControlTaskConflict(wfmControlTask, false)) {
+					object.put("response", ControlTaskEnum.CONFLICT);
+					return object;
+				}
+				CacheDataBase.wTaskService.saveControlTask(wfmControlTask);
+				CacheDataBase.wfmControlTaskRedisHelper.addRedisListValue(userId, wfmControlTask);
 				object.put("response", ControlTaskEnum.RUNNING);
-			}
-		} else if ("handStop".equals(commandCategory)) {
-			object.put("response", ControlTaskEnum.NO_TASK);
-			Integer controllerLogId = wfmControlTask.getControllerLogId();
-			if (wfmControlTasks != null) {
-				Iterator<WFMControlTask> iterator = wfmControlTasks.iterator();
-				while (iterator.hasNext()) {
-					WFMControlTask cTask = iterator.next();
+			} else if ("handStop".equals(commandCategory)) {
+				object.put("response", ControlTaskEnum.NO_TASK);
+				Integer controllerLogId = wfmControlTask.getControllerLogId();
+				for (int index = 0; index < wfmControlTasks.size(); index++) {
+					WFMControlTask cTask = wfmControlTasks.get(index);
 					if (controllerLogId != null && controllerLogId.equals(cTask.getControllerLogId())) {
 						wfmControlTask = cTask;
 						wfmControlTask.setLevel(4);
@@ -536,33 +574,31 @@ public class ControlHandlerUtil {
 							Long collectorId = command.getCollectorId();
 							command.setCommandCategory("stop");
 							if (collectorId != null) {
-								PriorityBlockingQueue<ControlCommand> pQueue = CacheDataBase.controlCommandCache.get(collectorId);
-								pQueue.add(command);
+								CacheDataBase.commandRedisHelper.setLockRedisListValue(collectorId.toString(), command);
 								CacheDataBase.ioControlData.notifyObservers(collectorId); // 推送到长连接设备
 							}
 						}
 						wfmControlTask.setTaskState(ControlTaskEnum.STOPPING);
+						CacheDataBase.wfmControlTaskRedisHelper.setRedisListIndexValue(userId, wfmControlTask, index);
 						object.put("response", ControlTaskEnum.RUNNING);
 						break;
 					}
 				}
-			} else {
-				controlHandlerUtil_log.error("该用户无任务:" + userId);
-			}
-		} else if ("query".equals(commandCategory)) {
-			object.put("response", ControlTaskEnum.NO_TASK);
-			Integer controllerLogId = wfmControlTask.getControllerLogId();
-			if (wfmControlTasks != null) {
-				Iterator<WFMControlTask> iterator = wfmControlTasks.iterator();
-				while (iterator.hasNext()) {
-					WFMControlTask cTask = iterator.next();
-					if (controllerLogId != null && controllerLogId.equals(cTask.getControllerLogId())) {
-						object.put("response", cTask.buildQueryResult());
-						return object;
+			} else if ("query".equals(commandCategory)) {
+				object.put("response", ControlTaskEnum.NO_TASK);
+				Integer controllerLogId = wfmControlTask.getControllerLogId();
+				if (wfmControlTasks != null) {
+					Iterator<WFMControlTask> iterator = wfmControlTasks.iterator();
+					while (iterator.hasNext()) {
+						WFMControlTask cTask = iterator.next();
+						if (controllerLogId != null && controllerLogId.equals(cTask.getControllerLogId())) {
+							object.put("response", cTask.buildQueryResult());
+							return object;
+						}
 					}
+				} else {
+					controlHandlerUtil_log.error("该用户无任务:" + userId);
 				}
-			} else {
-				controlHandlerUtil_log.error("该用户无任务:" + userId);
 			}
 		}
 		return object;

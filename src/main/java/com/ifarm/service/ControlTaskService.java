@@ -20,6 +20,10 @@ public class ControlTaskService {
 	}
 
 	public void deleteControlTask(ControlTask controlTask) {
-		controlTaskDao.delteControlTask(controlTask);
+		controlTaskDao.deleteControlTask(controlTask);
+	}
+	
+	public void deleteControlTask(Integer controlTaskId) {
+		controlTaskDao.deleteControlTask(controlTaskId);
 	}
 }

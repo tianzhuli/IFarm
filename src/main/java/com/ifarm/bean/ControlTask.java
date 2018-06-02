@@ -1,5 +1,6 @@
 package com.ifarm.bean;
 
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
@@ -20,7 +21,7 @@ import com.ifarm.util.TimeHelper;
 
 @Entity
 @Table(name = "farm_controller_log")
-public class ControlTask {
+public class ControlTask implements Serializable {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Integer controllerLogId; // 编号
@@ -59,6 +60,8 @@ public class ControlTask {
 	Long collectorId;
 	@Transient
 	String responseMessage; // 推送给用户的信息code
+	@Transient
+	private static final long serialVersionUID = 5547672866474747159L;
 
 	public Long getCollectorId() {
 		return collectorId;
@@ -316,21 +319,21 @@ public class ControlTask {
 			fields[i].setAccessible(true);
 			String key = fields[i].getName();
 			if (jsonObject.containsKey(key)) {
-					if (fields[i].getType() == Integer.class) {
-						fields[i].set(controlStrategy, jsonObject.getInt(key));
-					} else if (fields[i].getType() == String.class) {
-						fields[i].set(controlStrategy, jsonObject.getString(key));
-					} else if (fields[i].getType() == Double.class) {
-						fields[i].set(controlStrategy, jsonObject.getDouble(key));
-					} else if (fields[i].getType() == Boolean.class) {
-						fields[i].set(controlStrategy, jsonObject.getBoolean(key));
-					} else if (fields[i].getType() == Long.class) {
-						fields[i].set(controlStrategy, jsonObject.getLong(key));
-					} else if (fields[i].getType() == Timestamp.class) {
-						fields[i].set(controlStrategy, Timestamp.valueOf(jsonObject.getString(key)));
-					} else {
-						fields[i].set(controlStrategy, jsonObject.get(key));
-					}
+				if (fields[i].getType() == Integer.class) {
+					fields[i].set(controlStrategy, jsonObject.getInt(key));
+				} else if (fields[i].getType() == String.class) {
+					fields[i].set(controlStrategy, jsonObject.getString(key));
+				} else if (fields[i].getType() == Double.class) {
+					fields[i].set(controlStrategy, jsonObject.getDouble(key));
+				} else if (fields[i].getType() == Boolean.class) {
+					fields[i].set(controlStrategy, jsonObject.getBoolean(key));
+				} else if (fields[i].getType() == Long.class) {
+					fields[i].set(controlStrategy, jsonObject.getLong(key));
+				} else if (fields[i].getType() == Timestamp.class) {
+					fields[i].set(controlStrategy, Timestamp.valueOf(jsonObject.getString(key)));
+				} else {
+					fields[i].set(controlStrategy, jsonObject.get(key));
+				}
 			}
 		}
 		return controlStrategy;
@@ -345,7 +348,7 @@ public class ControlTask {
 		JSONObject jsonObject = JsonObjectUtil.fromBean(this, 13);
 		jsonObject.put("taskState", this.taskState);
 		jsonObject.put("taskTime", this.taskTime.toString());
-		jsonObject.put("systemType", CacheDataBase.controlSystemValueMap.get(systemId).get("systemType"));
+		jsonObject.put("systemType", CacheDataBase.farmControlSystemService.getFarmControlSystemById(systemId).getSystemType());
 		if (ControlTaskEnum.WAITTING.equals(taskState)) {
 			long currentTime = System.currentTimeMillis() / 1000;
 			jsonObject.put("remainWaitTime", startExecutionTime.getTime() / 1000 - currentTime);
@@ -375,7 +378,7 @@ public class ControlTask {
 		jsonObject.put("response", responseMessage);
 		jsonObject.put("taskState", taskState);
 		jsonObject.put("taskTime", this.taskTime.toString());
-		jsonObject.put("systemType", CacheDataBase.controlSystemValueMap.get(systemId).get("systemType"));
+		jsonObject.put("systemType", CacheDataBase.farmControlSystemService.getFarmControlSystemById(systemId).getSystemType());
 		if (stopReceived) {
 			jsonObject.put("stopTime", TimeHelper.secondConvertTime(this.stopTime));
 		}
@@ -388,5 +391,5 @@ public class ControlTask {
 	public String queryCurrentTask() {
 		return buildQueryResult().toString();
 	}
-	
+
 }

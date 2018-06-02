@@ -2,10 +2,12 @@ package com.ifarm.service;
 
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 import org.apache.commons.logging.Log;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Service;
 import com.ifarm.bean.FarmCollectorDevice;
 import com.ifarm.constant.SystemResultCodeEnum;
 import com.ifarm.dao.FarmCollectorDeviceDao;
+import com.ifarm.redis.util.FarmCollectorRedisHelper;
 import com.ifarm.util.CacheDataBase;
 import com.ifarm.util.JsonObjectUtil;
 import com.ifarm.util.SystemResultEncapsulation;
@@ -25,9 +28,40 @@ public class FarmCollectorDeviceService {
 	@Autowired
 	private FarmCollectorDeviceDao farmCollectorDeviceDao;
 
+	@Autowired
+	private FarmCollectorRedisHelper farmCollectorRedisHelper;
+	
 	private SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 	private static final Log farmCollectorDevice_log = LogFactory.getLog(FarmCollectorDeviceService.class);
+
+	public Map<String, JSONArray> queryCollectorDeviceDistrict(Integer farmId) {
+		List<FarmCollectorDevice> list = farmCollectorDeviceDao.queryFarmCollectorDevices(farmId);
+		Map<String, JSONArray> districtMap = new HashMap<String, JSONArray>();
+		for (int i = 0; i < list.size(); i++) {
+			FarmCollectorDevice farmCollectorDevice = list.get(i);
+			String deviceDistrict = farmCollectorDevice.getDeviceDistrict();
+			if (!districtMap.containsKey(deviceDistrict)) {
+				districtMap.put(deviceDistrict, new JSONArray());
+			}
+			districtMap.get(deviceDistrict).add(JsonObjectUtil.fromBean(farmCollectorDevice));
+		}
+		return districtMap;
+	}
+
+	public Map<String, JSONArray> queryCollectorDeviceType(Integer farmId) {
+		List<FarmCollectorDevice> list = farmCollectorDeviceDao.queryFarmCollectorDevices(farmId);
+		Map<String, JSONArray> districtMap = new HashMap<String, JSONArray>();
+		for (int i = 0; i < list.size(); i++) {
+			FarmCollectorDevice farmCollectorDevice = list.get(i);
+			String deviceType = farmCollectorDevice.getDeviceType();
+			if (!districtMap.containsKey(deviceType)) {
+				districtMap.put(deviceType, new JSONArray());
+			}
+			districtMap.get(deviceType).add(JsonObjectUtil.fromBean(farmCollectorDevice));
+		}
+		return districtMap;
+	}
 
 	public String saveCollectorDevice(FarmCollectorDevice fDevice) {
 		Long deviceId = fDevice.getDeviceId();
@@ -44,15 +78,17 @@ public class FarmCollectorDeviceService {
 		fDevice.setDeviceOrderNo(builderDeviceOrder(farmId));
 		try {
 			farmCollectorDeviceDao.saveFarmCollectorDevice(fDevice);
-			if (CacheDataBase.collectorDeviceAddCache.containsKey(fDevice.getCollectorId())) {
+			farmCollectorRedisHelper.setFarmCollectorCache(collectorId, deviceId);
+			/*if (CacheDataBase.collectorDeviceAddCache.containsKey(fDevice.getCollectorId())) {
 				CacheDataBase.collectorDeviceAddCache.get(fDevice.getCollectorId()).add(fDevice.getDeviceId());
 			} else {
 				List<Long> list = new ArrayList<Long>();
 				list.add(fDevice.getDeviceId());
 				CacheDataBase.collectorDeviceAddCache.put(fDevice.getCollectorId(), list);
-			}
+			}*/
 			// 将添加的设备加入到缓存,等待集中器通信时添加到集中器
-			CacheDataBase.collectorDeviceDetail.put(deviceId, JsonObjectUtil.fromBean(fDevice));
+			// CacheDataBase.collectorDeviceDetail.put(deviceId,
+			// JsonObjectUtil.fromBean(fDevice));
 			return SystemResultEncapsulation.resultCodeDecorate(SystemResultCodeEnum.SUCCESS);
 		} catch (Exception e) {
 			// TODO: handle exception

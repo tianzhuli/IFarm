@@ -62,7 +62,7 @@ public class FarmController {
 	 * @param userId
 	 * @return
 	 */
-	@RequestMapping(value = "getFarmCollectorsList")
+	@RequestMapping(value = "farmsList")
 	public String getFarmList(String userId) {
 		return farmService.getFarmsList(userId);
 	}

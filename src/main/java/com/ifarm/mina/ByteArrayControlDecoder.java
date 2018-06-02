@@ -6,9 +6,11 @@ import org.apache.mina.core.buffer.IoBuffer;
 import org.apache.mina.core.session.IoSession;
 import org.apache.mina.filter.codec.CumulativeProtocolDecoder;
 import org.apache.mina.filter.codec.ProtocolDecoderOutput;
+import org.springframework.stereotype.Component;
 
 import com.ifarm.util.ConvertData;
 
+@Component
 public class ByteArrayControlDecoder extends CumulativeProtocolDecoder {
 	private static final Log decode_log = LogFactory.getLog(ByteArrayControlDecoder.class);
 	ConvertData convertData = new ConvertData();

@@ -1,19 +1,33 @@
 package com.ifarm.processor;
 
+import java.io.IOException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextRefreshedEvent;
 
+import com.ifarm.mina.CollectServer;
+import com.ifarm.mina.ControlServer;
 import com.ifarm.nosql.dao.InitRedisDao;
 import com.ifarm.nosql.service.ControlSystemStateService;
+import com.ifarm.observer.UserControlData;
+import com.ifarm.redis.util.ControlCommandRedisHelper;
+import com.ifarm.redis.util.ControlTaskRedisHelper;
+import com.ifarm.redis.util.WfmControlTaskRedisHelper;
 import com.ifarm.service.CollectorDeviceValueService;
 import com.ifarm.service.CollectorValueService;
 import com.ifarm.service.ControlTaskService;
+import com.ifarm.service.FarmControlSystemService;
+import com.ifarm.service.FarmControlSystemWFMService;
 import com.ifarm.service.WFMControlTaskService;
 import com.ifarm.util.CacheDataBase;
 import com.ifarm.util.ControlCacheCollection;
 
 public class InitializeProcessor implements ApplicationListener<ContextRefreshedEvent> {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(InitializeProcessor.class);
 
 	@Autowired
 	private CollectorValueService collectorValuesService;
@@ -39,42 +53,72 @@ public class InitializeProcessor implements ApplicationListener<ContextRefreshed
 	@Autowired
 	private CollectorDeviceValueService cValueService;
 
+	@Autowired
+	private FarmControlSystemService farmControlSystemService;
+
+	@Autowired
+	private FarmControlSystemWFMService farmControlSystemWFMService;
+
+	@Autowired
+	private UserControlData userControlData;
+
+	@Autowired
+	private CollectServer collectServer;
+
+	@Autowired
+	private ControlServer controlServer;
+
+	@Autowired
+	private ControlCommandRedisHelper commandRedisHelper;
+
+	@Autowired
+	private ControlTaskRedisHelper controlTaskRedisHelper;
+
+	@Autowired
+	private WfmControlTaskRedisHelper wfmControlTaskRedisHelper;
+
 	@Override
 	public void onApplicationEvent(ContextRefreshedEvent arg0) {
 		// TODO Auto-generated method stub
 		if (arg0.getApplicationContext().getParent() == null) {
 			try {
-				init();// 静态service初始化
+				CacheDataBase.cacheCollection = controlCacheCollection;
 				CacheDataBase.initialize();// 静态的数据库初始化
-				// ReceiveDataServer.init();// 收数据线程开启
-				// ControlServer.init();// 控制线程开启
-				System.out.println("设备分区信息：" + CacheDataBase.collectorDeviceDistrictDetail);
-				System.out.println("设备类型信息：" + CacheDataBase.collectorDeviceTypeDetail);
-				System.out.println("设备参数上阈值：" + CacheDataBase.collcetorDeviceUpperThresholdMap);
-				System.out.println("设备参数下阈值：" + CacheDataBase.collctorDeviceDownThresholdMap);
-				System.out.println("设备信息" + CacheDataBase.collectorDeviceDetail);
-				/*
-				 * if (!initRedisDao.redisConnect()) {
-				 * System.out.println("redis连接异常"); }
-				 */
-				/*
-				 * Logger.getLogger("org.mongodb.driver").setLevel(Level.SEVERE);
-				 */
+				init();// 静态service初始化
+				if (!initRedisDao.redisConnect()) {
+					LOGGER.info("redis连接异常");
+				}
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
-				e.printStackTrace();
+				LOGGER.error("初始化系统异常", e);
 			}
 		}
 	}
 
 	public void init() {
-		CacheDataBase.cacheCollection = controlCacheCollection;
-		CacheDataBase.collectorValuesService = collectorValuesService;
+		try {
+			collectServer.start();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			LOGGER.error("init collect server error", e);
+		}
+		try {
+			controlServer.start();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			LOGGER.error("init control server error", e);
+		}
 		CacheDataBase.sensorValuesService = sensorValuesService;
 		CacheDataBase.taskService = taskService;
-		CacheDataBase.controlSystemStateService = controlSystemStateService;
 		CacheDataBase.initRedisDao = initRedisDao;
-		CacheDataBase.dValueService = cValueService;
 		CacheDataBase.wTaskService = wService;
+		CacheDataBase.farmControlSystemService = farmControlSystemService;
+		CacheDataBase.farmControlSystemWFMService = farmControlSystemWFMService;
+		if (CacheDataBase.userControlData == null) {
+			CacheDataBase.userControlData = userControlData;
+		}
+		CacheDataBase.commandRedisHelper = commandRedisHelper;
+		CacheDataBase.controlTaskRedisHelper = controlTaskRedisHelper;
+		CacheDataBase.wfmControlTaskRedisHelper = wfmControlTaskRedisHelper;
 	}
 }

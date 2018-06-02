@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import com.ifarm.bean.FarmControlDevice;
 import com.ifarm.constant.SystemResultCodeEnum;
 import com.ifarm.dao.FarmControlDeviceDao;
-import com.ifarm.util.CacheDataBase;
 import com.ifarm.util.JsonObjectUtil;
 import com.ifarm.util.SystemResultEncapsulation;
 
@@ -30,7 +29,7 @@ public class FarmControlDeviceService {
 		}
 		try {
 			farmControlDeviceDao.saveFarmCollectorDevice(farmControlDevice);
-			CacheDataBase.controlDeviceDetailMap.put(deviceId, JsonObjectUtil.fromBean(farmControlDevice));
+			//CacheDataBase.controlDeviceDetailMap.put(deviceId, JsonObjectUtil.fromBean(farmControlDevice));
 			return SystemResultEncapsulation.resultCodeDecorate(SystemResultCodeEnum.SUCCESS);
 		} catch (Exception e) {
 			// TODO: handle exception

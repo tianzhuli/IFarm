@@ -1,5 +1,6 @@
 package com.ifarm.dao;
 
+import org.hibernate.SQLQuery;
 import org.hibernate.Session;
 import org.springframework.stereotype.Repository;
 
@@ -20,5 +21,13 @@ public class WFMControlTaskDao extends BaseDao<WFMControlTask> {
 	public void delteControlTask(WFMControlTask wfmControlTask) {
 		Session session = getSession();
 		session.delete(wfmControlTask);
+	}
+	
+	public void deleteControlTask(Integer controlTaskId){
+		Session session = getSession();
+		String sql = "delete from WFMControlTask where controllerLogId=?";
+		SQLQuery query = session.createSQLQuery(sql);
+		query.setParameter(0, controlTaskId);
+		query.executeUpdate();
 	}
 }

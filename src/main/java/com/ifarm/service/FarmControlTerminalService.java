@@ -13,8 +13,6 @@ import org.springframework.stereotype.Service;
 import com.ifarm.bean.FarmControlTerminal;
 import com.ifarm.constant.SystemResultCodeEnum;
 import com.ifarm.dao.FarmControlTerminalDao;
-import com.ifarm.util.CacheDataBase;
-import com.ifarm.util.JsonObjectUtil;
 import com.ifarm.util.SystemResultEncapsulation;
 
 @Service
@@ -43,12 +41,12 @@ public class FarmControlTerminalService {
 	
 	public String saveFarmControlSystem(FarmControlTerminal farmControlTerminal) {
 		try {
-			Integer terminalId= farmControlTerminalDao.saveFarmControlTerminal(farmControlTerminal);
+			//Integer terminalId= farmControlTerminalDao.saveFarmControlTerminal(farmControlTerminal);
 			if (farmControlTerminal.getControlDeviceId()==null || farmControlTerminal.getSystemId()==null || farmControlTerminal.getControlDeviceBit()==null) {
 				return SystemResultEncapsulation.resultCodeDecorate(SystemResultCodeEnum.NO_ID);
 			}
 			farmControlTerminalDao.saveFarmControlTerminal(farmControlTerminal);
-			CacheDataBase.controlTeminalDetailMap.put(terminalId, JsonObjectUtil.fromBean(farmControlTerminal));
+			//CacheDataBase.controlTeminalDetailMap.put(terminalId, JsonObjectUtil.fromBean(farmControlTerminal));
 			return SystemResultEncapsulation.resultCodeDecorate(SystemResultCodeEnum.SUCCESS);
 		} catch (Exception e) {
 			// TODO: handle exception

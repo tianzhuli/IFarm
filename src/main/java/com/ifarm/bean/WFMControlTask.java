@@ -1,5 +1,6 @@
 package com.ifarm.bean;
 
+import java.io.Serializable;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -27,7 +28,7 @@ import com.ifarm.util.TimeHelper;
  */
 @Table
 @Entity(name = "farm_controller_wfm_task")
-public class WFMControlTask {
+public class WFMControlTask implements Serializable {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Integer controllerLogId; // 编号
@@ -60,14 +61,16 @@ public class WFMControlTask {
 	@Transient
 	private String commandCategory; // 指令类别（立即执行、定时执行、手动停止、自动停止)
 	@Transient
-	SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+	transient SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 	@Transient
 	String responseMessage; // 推送给用户的信息code
 	@Transient
-	List<WFMControlCommand> wfmControlCommads = new ArrayList<WFMControlCommand>(); //开启按照阀门、罐、水泵的顺序，关闭则相反
+	List<WFMControlCommand> wfmControlCommads = new ArrayList<WFMControlCommand>(); // 开启按照阀门、罐、水泵的顺序，关闭则相反
 	@Transient
-	String faultIndentifying; //异常的逻辑控制单元
-	
+	String faultIndentifying; // 异常的逻辑控制单元
+	@Transient
+	private static final long serialVersionUID = 432812323436166489L;
+
 	public Integer getControllerLogId() {
 		return controllerLogId;
 	}
@@ -292,7 +295,6 @@ public class WFMControlTask {
 		this.responseMessage = responseMessage;
 	}
 
-	
 	public String getFaultIndentifying() {
 		return faultIndentifying;
 	}
@@ -321,8 +323,6 @@ public class WFMControlTask {
 		}
 		return null;
 	}
-
-	
 
 	/**
 	 * 每次用户查询的结果，组成相对应的json 底层硬件现在不能返回修改时间
@@ -362,14 +362,14 @@ public class WFMControlTask {
 		jsonObject.put("response", responseMessage);
 		jsonObject.put("taskState", this.taskState);
 		jsonObject.put("taskTime", this.taskTime.toString());
-		jsonObject.put("systemType", CacheDataBase.wfmControlSystemValueMap.get(systemId).get("systemType"));
+		jsonObject.put("systemType", CacheDataBase.farmControlSystemWFMService.getFarmControlSystemById(systemId).getSystemType());
 		if (stopReceived) {
 			jsonObject.put("stopTime", TimeHelper.secondConvertTime(this.stopTime));
 		}
 		if (addReceived) {
 			jsonObject.put("addResultTime", TimeHelper.secondConvertTime(this.addResultTime));
 		}
-		if (faultIndentifying!=null) {
+		if (faultIndentifying != null) {
 			jsonObject.put("faultIndentifying", this.faultIndentifying);
 		}
 		return jsonObject.toString();
@@ -378,5 +378,5 @@ public class WFMControlTask {
 	public String queryCurrentTask() {
 		return buildQueryResult().toString();
 	}
-	
+
 }

@@ -8,7 +8,9 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.mina.core.service.IoHandlerAdapter;
 import org.apache.mina.core.session.IdleStatus;
 import org.apache.mina.core.session.IoSession;
+import org.springframework.stereotype.Component;
 
+@Component
 public class CollectHandler extends IoHandlerAdapter {
 
 	private static final Log HANDLER_LOG = LogFactory.getLog(CollectHandler.class);

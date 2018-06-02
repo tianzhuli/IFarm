@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import com.ifarm.bean.FarmWFMControlSystem;
 import com.ifarm.constant.SystemResultCodeEnum;
 import com.ifarm.dao.FarmControlSystemWFMDao;
-import com.ifarm.util.CacheDataBase;
 import com.ifarm.util.JsonObjectUtil;
 import com.ifarm.util.SystemResultEncapsulation;
 
@@ -33,7 +32,7 @@ public class FarmControlSystemWFMService {
 			farmControlSystem.setSystemTypeCode("waterFertilizerMedicineControl");
 			Integer systemId = farmControlSystemWFMDao.saveFarmControlSystem(farmControlSystem);
 			jsonObject.put("systemId", systemId);
-			CacheDataBase.controlSystemValueMap.put(systemId, jsonObject);
+			//CacheDataBase.controlSystemValueMap.put(systemId, jsonObject);
 			return SystemResultEncapsulation.resultCodeDecorate(SystemResultCodeEnum.SUCCESS);
 		} catch (Exception e) {
 			// TODO: handle exception
@@ -47,7 +46,7 @@ public class FarmControlSystemWFMService {
 		JSONArray jsonArray = new JSONArray();
 		FarmWFMControlSystem fWfmControlSystem = farmControlSystemWFMDao.getTById(fControlSystem.getSystemId(), FarmWFMControlSystem.class);
 		Integer medicineNum = fWfmControlSystem.getMedicineNum();
-		Integer districtNum = fWfmControlSystem.getDistrictSum();
+		Integer districtNum = fWfmControlSystem.getDistrictNum();
 		Integer fertierNum = fWfmControlSystem.getFertierNum();
 		String controlType = "waterFertilizerMedicineControl";
 		JSONObject pumpJsonObject = new JSONObject();
@@ -90,5 +89,9 @@ public class FarmControlSystemWFMService {
 			jsonArray.add(jsonObject);
 		}
 		return jsonArray.toString();
+	}
+	
+	public FarmWFMControlSystem getFarmControlSystemById(Integer systemId) {
+		return farmControlSystemWFMDao.getTById(systemId, FarmWFMControlSystem.class);
 	}
 }

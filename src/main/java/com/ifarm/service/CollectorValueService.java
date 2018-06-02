@@ -13,7 +13,7 @@ import com.ifarm.bean.CollectorValue;
 import com.ifarm.bean.FarmCollector;
 import com.ifarm.dao.CollectorValueDao;
 import com.ifarm.dao.FarmCollectorDao;
-import com.ifarm.util.CacheDataBase;
+import com.ifarm.redis.util.FarmCollectorValueRedisUtil;
 import com.ifarm.util.ConvertData;
 import com.ifarm.util.JsonObjectUtil;
 
@@ -24,7 +24,10 @@ public class CollectorValueService {
 
 	@Autowired
 	private FarmCollectorDao farmCollectorDao;
-
+	
+	@Autowired
+	private FarmCollectorValueRedisUtil fCollectorValueRedisUtil;
+	
 	private ConvertData convertData = new ConvertData();
 
 	public void saveCollectorValues(byte[] arr, int size) {
@@ -36,20 +39,23 @@ public class CollectorValueService {
 		collectorValues.setCollectorValidItem(convertData.getdataType3(arr, 10));
 		collectorValues.setUpdateTime(new Timestamp(System.currentTimeMillis()));
 		collectorValueDao.saveCollectorValues(collectorValues);
-		CacheDataBase.collectorStateValueMap.put(collectorId, JsonObjectUtil.fromBean(collectorValues));
+		fCollectorValueRedisUtil.setRedisStringValue(collectorId.toString(), collectorValues);
+		//CacheDataBase.collectorStateValueMap.put(collectorId, JsonObjectUtil.fromBean(collectorValues));
 	}
 
 	public String getCollectorValues(FarmCollector farmCollector) {
 		JSONArray jsonArray = new JSONArray();
 		if (farmCollector.getCollectorId() != null) {
-			JSONObject jsonObject = CacheDataBase.collectorStateValueMap.get(farmCollector.getCollectorId());
+			//JSONObject jsonObject = CacheDataBase.collectorStateValueMap.get(farmCollector.getCollectorId());
+			JSONObject jsonObject = JsonObjectUtil.fromBean(fCollectorValueRedisUtil.getRedisStringValue(farmCollector.getCollectorId().toString()));
 			jsonArray.add(jsonObject);
 			return jsonArray.toString();
 		} else if (farmCollector.getFarmId() != null) {
 			List<FarmCollector> list = farmCollectorDao.getDynamicList(farmCollector);
 			for (int i = 0; i < list.size(); i++) {
 				FarmCollector currentFarmCollector = list.get(i);
-				JSONObject jsonObject = CacheDataBase.collectorStateValueMap.get(currentFarmCollector.getCollectorId());
+				//JSONObject jsonObject = CacheDataBase.collectorStateValueMap.get(currentFarmCollector.getCollectorId());
+				JSONObject jsonObject = JsonObjectUtil.fromBean(fCollectorValueRedisUtil.getRedisStringValue(currentFarmCollector.getCollectorId().toString()));
 				jsonArray.add(jsonObject);
 			}
 			return jsonArray.toString();

@@ -2,6 +2,7 @@ package com.ifarm.dao;
 
 import java.util.List;
 
+import org.hibernate.Query;
 import org.hibernate.SQLQuery;
 import org.hibernate.Session;
 import org.springframework.stereotype.Repository;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import com.ifarm.bean.FarmCollectorDevice;
 
 @Repository
+@SuppressWarnings("unchecked")
 public class FarmCollectorDeviceDao extends BaseDao<FarmCollectorDevice> {
 
 	public void saveFarmCollectorDevice(FarmCollectorDevice farmCollectorDevice) {
@@ -24,4 +26,11 @@ public class FarmCollectorDeviceDao extends BaseDao<FarmCollectorDevice> {
 		return sqlQuery.list();
 	}
 
+	public List<FarmCollectorDevice> queryFarmCollectorDevices(Integer farmId) {
+		Session session = getSession();
+		String sql = "from FarmCollectorDevice where farmId=? order by deviceOrderNo asc";
+		Query query = session.createQuery(sql);
+		query.setParameter(0, farmId);
+		return query.list();
+	}
 }

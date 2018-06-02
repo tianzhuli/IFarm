@@ -18,6 +18,10 @@ public abstract class WebSocketSubjectDecorate implements Subject {
 	public WebSocketSubjectDecorate(Subject subject) {
 		this.subject = subject;
 	}
+	
+	public WebSocketSubjectDecorate() {
+		
+	}
 
 	@Override
 	public void registerObserver(Observer o) {

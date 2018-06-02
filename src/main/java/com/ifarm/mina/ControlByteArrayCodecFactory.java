@@ -4,16 +4,15 @@ import org.apache.mina.core.session.IoSession;
 import org.apache.mina.filter.codec.ProtocolCodecFactory;
 import org.apache.mina.filter.codec.ProtocolDecoder;
 import org.apache.mina.filter.codec.ProtocolEncoder;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
+@Component
 public class ControlByteArrayCodecFactory implements ProtocolCodecFactory {
-
+	@Autowired
 	private ByteArrayControlDecoder decoder;
+	@Autowired
 	private ByteArrayControlEncoder encoder;
-
-	public ControlByteArrayCodecFactory() {
-		decoder = new ByteArrayControlDecoder();
-		encoder = new ByteArrayControlEncoder();
-	}
 
 	@Override
 	public ProtocolEncoder getEncoder(IoSession session) throws Exception {

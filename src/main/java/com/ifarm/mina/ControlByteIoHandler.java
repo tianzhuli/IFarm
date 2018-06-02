@@ -3,16 +3,18 @@ package com.ifarm.mina;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.LinkedList;
-import java.util.concurrent.PriorityBlockingQueue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.mina.core.service.IoHandlerAdapter;
 import org.apache.mina.core.session.IdleStatus;
 import org.apache.mina.core.session.IoSession;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import com.ifarm.bean.ControlCommand;
 import com.ifarm.observer.IoSessionObserver;
+import com.ifarm.redis.util.ControlCommandRedisHelper;
 import com.ifarm.util.ByteConvert;
 import com.ifarm.util.CacheDataBase;
 import com.ifarm.util.Constants;
@@ -20,10 +22,13 @@ import com.ifarm.util.ControlHandlerUtil;
 import com.ifarm.util.ConvertData;
 
 @SuppressWarnings("unchecked")
+@Component
 public class ControlByteIoHandler extends IoHandlerAdapter implements IoSessionObserver {
 	private static final Log inHandler_log = LogFactory.getLog(ControlByteIoHandler.class);
 	ConvertData convertData = new ConvertData();
-
+	@Autowired
+	private ControlCommandRedisHelper commandRedisHelper;
+	
 	public ControlByteIoHandler() {
 		CacheDataBase.ioControlData.registerObserver(Constants.ioControlHandler, this);
 	}
@@ -92,13 +97,18 @@ public class ControlByteIoHandler extends IoHandlerAdapter implements IoSessionO
 			session.setAttribute("collectorId", collectorId);
 			CacheDataBase.ioControlData.registerObserver(collectorId, session);
 			inHandler_log.info("信号强度:" + networkSignal + " 供电电压:" + voltage * 1.0 / 10 + " 温度:" + temperature + " 集中器编号:" + collectorId);
-			PriorityBlockingQueue<ControlCommand> queue = CacheDataBase.controlCommandCache.get(collectorId);
+			ControlCommand command = commandRedisHelper.getLockRedisListValue(collectorId.toString());
+			if (command != null) {
+				session.write(command.commandToByte());
+				commandsLinkedList.add(command);
+			}
+			/*PriorityBlockingQueue<ControlCommand> queue = CacheDataBase.controlCommandCache.get(collectorId);
 			while (queue != null && queue.size() > 0) {
 				ControlCommand command = queue.peek();
 				session.write(command.commandToByte());
 				commandsLinkedList.add(command);
 				queue.take();
-			}
+			}*/
 		} else if (arr[0] == (byte) 0xFD) { // 设备的回复命令
 			if (commandsLinkedList.size() > 0) {
 				ControlCommand command = commandsLinkedList.pop();
@@ -124,7 +134,7 @@ public class ControlByteIoHandler extends IoHandlerAdapter implements IoSessionO
 		for (int i = 0; i < arr.length; i++) {
 			buffer.append(Integer.toHexString(arr[i] & 0xff) + " ");
 		}
-		inHandler_log.debug("send message to " + session + ":" + buffer);
+		inHandler_log.debug("server send message to " + session + " device:" + buffer);
 	}
 
 	@Override
@@ -137,7 +147,12 @@ public class ControlByteIoHandler extends IoHandlerAdapter implements IoSessionO
 	public void update(Long collectorId, IoSession ioSession) throws Exception {
 		// TODO Auto-generated method stub
 		LinkedList<ControlCommand> commandsLinkedList = (LinkedList<ControlCommand>) ioSession.getAttribute("controlCommands");
-		if (CacheDataBase.controlCommandCache.containsKey(collectorId)) {
+		ControlCommand command = commandRedisHelper.getLockRedisListValue(collectorId.toString());
+		if (command != null) {
+			ioSession.write(command.commandToByte()); // 如果抛出异常下面的就不执行，该指令下次依旧可以发送下去
+			commandsLinkedList.add(command);
+		}
+		/*if (CacheDataBase.controlCommandCache.containsKey(collectorId)) {
 			while (!CacheDataBase.controlCommandCache.get(collectorId).isEmpty()) {
 				ControlCommand command = CacheDataBase.controlCommandCache.get(collectorId).peek();
 				if (command != null) {
@@ -146,7 +161,7 @@ public class ControlByteIoHandler extends IoHandlerAdapter implements IoSessionO
 					CacheDataBase.controlCommandCache.get(collectorId).take();
 				}
 			}
-		}
+		}*/
 	}
 
 }

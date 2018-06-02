@@ -6,7 +6,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import net.sf.json.JSONObject;
 
@@ -17,17 +16,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.ifarm.annotation.FarmServiceLog;
-import com.ifarm.bean.ControlTask;
 import com.ifarm.bean.Page;
 import com.ifarm.bean.User;
 import com.ifarm.bean.UserFarmAuthority;
-import com.ifarm.bean.WFMControlTask;
 import com.ifarm.constant.AuthorityConstant;
 import com.ifarm.constant.SystemResultCodeEnum;
 import com.ifarm.dao.UserDao;
 import com.ifarm.dao.UserFarmAuthorityDao;
 import com.ifarm.nosql.bean.UserToken;
 import com.ifarm.nosql.dao.UserTokenDao;
+import com.ifarm.redis.util.UserRedisUtil;
 import com.ifarm.util.CacheDataBase;
 import com.ifarm.util.FileUtil;
 import com.ifarm.util.JsonObjectUtil;
@@ -45,9 +43,12 @@ public class UserService {
 	@Autowired
 	private UserFarmAuthorityDao userFarmAuthorityDao;
 
+	@Autowired
+	private UserRedisUtil userRedisUtil;
+	
 	private static final Log user_log = LogFactory.getLog(UserService.class);
 
-	public JSONObject userResgiter(User user) {
+	public JSONObject userRegister(User user) {
 		JSONObject jsonObject = new JSONObject();
 		if (user.getUserId() != null && user.getUserPwd() != null) {
 			try {
@@ -58,12 +59,12 @@ public class UserService {
 					user.setUserRegisterTime(Timestamp.valueOf(simpleDateFormat.format(new Date())));
 					userDao.saveUser(user);
 					// 更新内存，这个应该有问题
-					CacheDataBase.userControlResultMessageCache.put(userId, new LinkedBlockingQueue<String>());
-					CacheDataBase.controlTaskStateCache.put(userId, new LinkedBlockingQueue<ControlTask>());
-					CacheDataBase.wfmControlTaskStateCache.put(userId, new LinkedBlockingQueue<WFMControlTask>());
+					//CacheDataBase.userControlResultMessageCache.put(userId, new LinkedBlockingQueue<String>());
+					//CacheDataBase.controlTaskStateCache.put(userId, new LinkedBlockingQueue<ControlTask>());
+					//CacheDataBase.wfmControlTaskStateCache.put(userId, new LinkedBlockingQueue<WFMControlTask>());
 					jsonObject.put("message", SystemResultCodeEnum.SUCCESS);
 					jsonObject.put("token", token);
-					CacheDataBase.userToken.put(user.getUserId(), token);
+					//CacheDataBase.userToken.put(user.getUserId(), token);
 				} else {
 					jsonObject.put("message", SystemResultCodeEnum.REPEAT);
 				}
@@ -88,7 +89,8 @@ public class UserService {
 		stringBuffer.append(UUID.randomUUID());
 		String token = stringBuffer.toString().replace("-", "");
 		user_log.info(userId + ":" + token);
-		CacheDataBase.userToken.put(userId, token);
+		//CacheDataBase.userToken.put(userId, token);
+		userRedisUtil.setUserToken(userId, token);
 		return token;
 	}
 
@@ -100,19 +102,20 @@ public class UserService {
 		stringBuffer.append("ifarm");
 		stringBuffer.append(UUID.randomUUID());
 		stringBuffer.append(Base64.encodeBase64String(userId.getBytes()));
-		String token = stringBuffer.toString().replace("-", "");
-		user_log.info(userId + ":" + token);
-		CacheDataBase.userSignature.put(userId, token);
+		String signature = stringBuffer.toString().replace("-", "");
+		user_log.info(userId + ":" + signature);
+		//CacheDataBase.userSignature.put(userId, token);
+		userRedisUtil.setUserSignature(userId, signature);
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 		UserToken userToken = new UserToken();
 		userToken.setUserId(userId);
-		userToken.setTokenId(token);
+		userToken.setTokenId(signature);
 		userToken.setTokenTime(simpleDateFormat.format(new Date()));
 		/*
 		 * try { userTokenDao.saveUserToken(userToken); } catch (Exception e) {
 		 * // TODO: handle exception e.printStackTrace(); }
 		 */
-		return token;
+		return signature;
 	}
 
 	public String userLogin(User user, String token) {
@@ -120,7 +123,8 @@ public class UserService {
 			return SystemResultCodeEnum.INVNAIN;
 		}
 		String userToken = "";
-		userToken = CacheDataBase.userToken.get(user.getUserId());
+		//userToken = CacheDataBase.userToken.get(user.getUserId());
+		userToken = userRedisUtil.getUserToken(user.getUserId());
 		if (!token.equals(userToken)) {
 			return SystemResultCodeEnum.ERROR_TOKEN;
 		}
@@ -169,6 +173,10 @@ public class UserService {
 		} else {
 			return SystemResultCodeEnum.NO_USER;
 		}
+	}
+	
+	public User qeuryUserById(String userId) {
+		return userDao.getUserById(userId);
 	}
 
 	public String getUsersListAround(String userId, Page page) {

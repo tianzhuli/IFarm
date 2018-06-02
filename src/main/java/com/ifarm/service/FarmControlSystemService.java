@@ -15,12 +15,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.ifarm.bean.ControlTask;
+import com.ifarm.bean.FarmControlDevice;
 import com.ifarm.bean.FarmControlSystem;
 import com.ifarm.bean.WFMControlCommand;
 import com.ifarm.bean.WFMControlTask;
 import com.ifarm.constant.SystemResultCodeEnum;
+import com.ifarm.dao.FarmControlDeviceDao;
 import com.ifarm.dao.FarmControlSystemDao;
-import com.ifarm.util.CacheDataBase;
 import com.ifarm.util.ControlStrategyUtil;
 import com.ifarm.util.JsonObjectUtil;
 import com.ifarm.util.SystemResultEncapsulation;
@@ -30,6 +31,9 @@ import com.ifarm.util.SystemResultEncapsulation;
 public class FarmControlSystemService {
 	@Autowired
 	private FarmControlSystemDao farmControlSystemDao;
+	
+	@Autowired
+	private FarmControlDeviceDao farmControlDeviceDao;
 	
 	private static final Log farmControlSystemService_log = LogFactory.getLog(FarmControlSystemService.class);
 	
@@ -64,7 +68,7 @@ public class FarmControlSystemService {
 			JSONObject jsonObject = JsonObjectUtil.fromBean(farmControlSystem);
 			Integer systemId = farmControlSystemDao.saveFarmControlSystem(farmControlSystem);
 			jsonObject.put("systemId", systemId);
-			CacheDataBase.controlSystemValueMap.put(systemId, jsonObject);
+			//CacheDataBase.controlSystemValueMap.put(systemId, jsonObject);
 			return SystemResultEncapsulation.resultCodeDecorate(SystemResultCodeEnum.SUCCESS);
 		} catch (Exception e) {
 			// TODO: handle exception
@@ -124,7 +128,7 @@ public class FarmControlSystemService {
 		if (list != null && list.size() > 0) {
 			Integer controlDeviceId = (Integer) list.get(0)[1];
 			controlTask.setControlDeviceId(controlDeviceId); // 目前只是简单操作，后期可能涉及一个控制系统有多个设备关联
-			controlTask.setCollectorId(CacheDataBase.controlDeviceDetailMap.get(controlDeviceId).getLong("collectorId")); // 当然不同设备有可能来源于不同集中器，所以很坑
+			controlTask.setCollectorId(farmControlDeviceDao.getTById(controlDeviceId, FarmControlDevice.class).getCollectorId()); // 当然不同设备有可能来源于不同集中器，所以很坑
 		} else {
 			return;
 		}
@@ -136,6 +140,11 @@ public class FarmControlSystemService {
 		}
 	}
 
+	public void genetareControlTaskCommand(ControlTask controlTask) {
+		List<Object[]> list = farmControlSystemDao.farmControlSystemToTerminal(controlTask.getSystemId());
+		
+	}
+	
 	public void controlTerminalToControlDevice(Map<Integer, ArrayList<Object[]>> map, List<Object[]> list, ArrayList<Integer> deviceList) {
 		for (int i = 0; i < list.size(); i++) {
 			Object[] objects = list.get(i);
@@ -150,7 +159,7 @@ public class FarmControlSystemService {
 			}
 		}
 	}
-
+	
 	/**
 	 * 配置所有的设备命令
 	 * 
@@ -196,7 +205,7 @@ public class FarmControlSystemService {
 		controlTerminalToControlDevice(map, pumpList, controlDevicesArrayList);
 		for (int i = 0; i < controlDevicesArrayList.size(); i++) {
 			Integer deviceId = controlDevicesArrayList.get(i);
-			Long collectorId = CacheDataBase.controlDeviceDetailMap.get(deviceId).getLong("collectorId");
+			Long collectorId = farmControlDeviceDao.getTById(deviceId, FarmControlDevice.class).getCollectorId();
 			ArrayList<Object[]> arrayList = map.get(deviceId);
 			int[] forwardbits = new int[32];
 			int[] reversebits = new int[32];
@@ -227,5 +236,9 @@ public class FarmControlSystemService {
 			return "success";
 		}
 		return "error";
+	}
+	
+	public FarmControlSystem getFarmControlSystemById(Integer systemId) {
+		return farmControlSystemDao.getTById(systemId, FarmControlSystem.class);
 	}
 }

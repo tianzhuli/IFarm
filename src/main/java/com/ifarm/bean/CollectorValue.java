@@ -1,5 +1,6 @@
 package com.ifarm.bean;
 
+import java.io.Serializable;
 import java.sql.Timestamp;
 
 import javax.persistence.Entity;
@@ -7,10 +8,11 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import javax.persistence.Transient;
 
 @Entity
 @Table(name = "collector_value")
-public class CollectorValue {
+public class CollectorValue implements Serializable{
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Integer collectorVaulesId;
@@ -21,7 +23,10 @@ public class CollectorValue {
 	private Integer collectorValidItem;
 	/* private Integer collectorDataItem; */
 	private Timestamp updateTime;
-
+	
+	@Transient
+	private static final long serialVersionUID = 7141663320727789577L;
+	
 	public void setCollectorVaulesId(Integer collectorVaulesId) {
 		this.collectorVaulesId = collectorVaulesId;
 	}

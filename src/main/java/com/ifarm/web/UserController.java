@@ -7,8 +7,8 @@ import java.util.Iterator;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -40,7 +40,7 @@ public class UserController implements HandlerExceptionResolver {
 	@Autowired
 	private UserLogMongoService userLogMongoService;
 
-	private static final Log USER_CONTROLLER_LOG = LogFactory.getLog(UserController.class);
+	private static final Logger USER_CONTROLLER_LOG = LoggerFactory.getLogger(UserController.class);
 
 	@RequestMapping(value = "login")
 	public String userLogin(@RequestParam("token") String token, HttpServletRequest request, User user) {
@@ -52,7 +52,7 @@ public class UserController implements HandlerExceptionResolver {
 
 	@RequestMapping(value = "register")
 	public String userRegister(HttpServletRequest request, User user) {
-		String returnMessage = userService.userResgiter(user).toString();
+		String returnMessage = userService.userRegister(user).toString();
 		userLogService.saveUserLog(request, user, "register", "user", returnMessage);
 		return returnMessage;
 	}
@@ -168,8 +168,7 @@ public class UserController implements HandlerExceptionResolver {
 	public ModelAndView resolveException(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
 		// TODO Auto-generated method stub
 		//ex.printStackTrace();
-		USER_CONTROLLER_LOG.error(ex.getMessage());
-		USER_CONTROLLER_LOG.error(handler, ex);
+		USER_CONTROLLER_LOG.error("userController error", ex);
 		return new ModelAndView("error.jsp");
 	}
 }

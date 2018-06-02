@@ -17,10 +17,13 @@ public class ProductionDeviceUtil {
 	@Autowired
 	private StringRedisTemplate stringRedisTemplate;
 
-	public JSONArray getProductionDeviceType(){
+	public JSONArray getProductionDeviceType(String deviceCategory) {
+		if (deviceCategory == null) {
+			deviceCategory = "";
+		}
 		JSONArray jsonArray = new JSONArray();
 		HashOperations<String, String, String> hashOperations = stringRedisTemplate.opsForHash();
-		Set<String> deviceTypeSet = stringRedisTemplate.keys(RedisContstant.PRODUCT_DEVICE_TYPE + "*");
+		Set<String> deviceTypeSet = stringRedisTemplate.keys(RedisContstant.PRODUCT_DEVICE_TYPE + deviceCategory + "*");
 		Map<String, String> categoryMap = hashOperations.entries(RedisContstant.PRODUCT_DEVICE_CATEGORY);
 		for (String key : deviceTypeSet) {
 			Map<String, String> deviceTypeMap = hashOperations.entries(key);
@@ -53,6 +56,5 @@ public class ProductionDeviceUtil {
 		HashOperations<String, String, String> hashOperations = stringRedisTemplate.opsForHash();
 		hashOperations.putAll(RedisContstant.PRODUCT_DEVICE_CATEGORY, hashMap);
 	}
-	
-	
+
 }

@@ -3,18 +3,15 @@ package com.ifarm.service;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.concurrent.PriorityBlockingQueue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.ifarm.bean.ControlCommand;
 import com.ifarm.bean.FarmCollector;
 import com.ifarm.constant.SystemResultCodeEnum;
 import com.ifarm.dao.FarmCollectorDao;
-import com.ifarm.util.CacheDataBase;
 import com.ifarm.util.JsonObjectUtil;
 import com.ifarm.util.SystemResultEncapsulation;
 
@@ -45,8 +42,8 @@ public class FarmCollectorService {
 		try {
 			farmCollectorDao.saveFarmCollector(farmCollector);
 			// 更新到内存
-			CacheDataBase.collectorDetailMap.put(collectorId, JsonObjectUtil.fromBean(farmCollector));
-			CacheDataBase.controlCommandCache.put(collectorId, new PriorityBlockingQueue<ControlCommand>());
+			//CacheDataBase.collectorDetailMap.put(collectorId, JsonObjectUtil.fromBean(farmCollector));
+			//CacheDataBase.controlCommandCache.put(collectorId, new PriorityBlockingQueue<ControlCommand>());
 			return SystemResultEncapsulation.resultCodeDecorate(SystemResultCodeEnum.SUCCESS);
 		} catch (Exception e) {
 			// TODO: handle exception

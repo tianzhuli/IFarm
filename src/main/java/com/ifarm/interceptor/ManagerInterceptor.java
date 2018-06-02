@@ -1,6 +1,5 @@
 package com.ifarm.interceptor;
 
-import java.io.PrintWriter;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
@@ -14,6 +13,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 
 import com.ifarm.annotation.AuthPassport;
+import com.ifarm.constant.SystemResultCodeEnum;
 import com.ifarm.nosql.dao.ManagerTokenDao;
 
 public class ManagerInterceptor implements HandlerInterceptor {
@@ -63,7 +63,6 @@ public class ManagerInterceptor implements HandlerInterceptor {
 		String managerId = request.getParameter("managerId");
 		AuthPassport authPassport = ((HandlerMethod) handler).getMethodAnnotation(AuthPassport.class);
 		if (authPassport != null && authPassport.validate() == false) {
-			// System.out.println("验证是管理员登录操作");
 			if (managerId == null) {
 				return false;
 			} else {
@@ -75,13 +74,7 @@ public class ManagerInterceptor implements HandlerInterceptor {
 			return false;
 		}
 		if (!token.equals(managerTokenDao.getManagerToken(managerId))) {
-			// System.out.println("管理员验证失败");
-			response.setContentType("text/html;charset=utf-8");
-			response.setCharacterEncoding("UTF-8");
-			PrintWriter out = response.getWriter();
-			out.print("lose efficacy");
-			out.flush();
-			out.close();
+			InterceptorOutputMessage.outStreamMeassge(response, SystemResultCodeEnum.EXPIRED_TOKEN);
 			return false;
 		}
 		return true;

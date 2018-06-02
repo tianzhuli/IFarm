@@ -5,11 +5,14 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.mina.core.session.IoSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.ifarm.mina.ControlByteIoHandler;
 import com.ifarm.util.Constants;
 
 public class IoControlData extends IoSessionSubjectDecorator {
+	private static final Logger LOGGER = LoggerFactory.getLogger(IoControlData.class);
 	private Map<Long, IoSession> map = new ConcurrentHashMap<Long, IoSession>();
 	private Map<String, IoSessionObserver> constant = new HashMap<String, IoSessionObserver>();
 
@@ -61,7 +64,7 @@ public class IoControlData extends IoSessionSubjectDecorator {
 			IoSession session = map.get(key);
 			observer.update(key, session);
 		} else {
-			System.out.println("底层集中器" + key + "已离线");
+			LOGGER.info("底层集中器" + key + "已离线");
 		}
 	}
 

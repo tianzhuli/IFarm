@@ -21,7 +21,7 @@ public class FarmWFMControlSystem {
 	private String systemDistrict;
 	private String systemNo;
 	private Integer medicineNum;
-	private Integer districtSum;
+	private Integer districtNum;
 	private Integer fertierNum;
 	private String systemDescription;
 	private String systemLocation;
@@ -123,12 +123,12 @@ public class FarmWFMControlSystem {
 		this.fertierNum = fertierNum;
 	}
 
-	public Integer getDistrictSum() {
-		return districtSum;
+	public Integer getDistrictNum() {
+		return districtNum;
 	}
 
-	public void setDistrictSum(Integer districtSum) {
-		this.districtSum = districtSum;
+	public void setDistrictNum(Integer districtNum) {
+		this.districtNum = districtNum;
 	}
 
 }

@@ -1,7 +1,5 @@
 package com.ifarm.interceptor;
 
-import java.io.PrintWriter;
-
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -13,12 +11,15 @@ import org.springframework.web.servlet.ModelAndView;
 
 import com.ifarm.bean.User;
 import com.ifarm.constant.SystemResultCodeEnum;
-import com.ifarm.dao.UserDao;
-import com.ifarm.util.CacheDataBase;
+import com.ifarm.redis.util.UserRedisUtil;
+import com.ifarm.service.UserService;
 
 public class UserControlInterceptor implements HandlerInterceptor {
 	@Autowired
-	private UserDao userDao;
+	private UserService userService;
+
+	@Autowired
+	private UserRedisUtil userRedisUtil;
 
 	private static final Log CONTROLTERCEPTOR_LOG = LogFactory.getLog(UserControlInterceptor.class);
 
@@ -28,31 +29,21 @@ public class UserControlInterceptor implements HandlerInterceptor {
 		CONTROLTERCEPTOR_LOG.info(request.getRequestURI() + "---" + request.getParameterMap());
 		String signature = request.getParameter("signature");
 		String userId = request.getParameter("userId");
-		response.setContentType("text/html;charset=utf-8");
-		response.setCharacterEncoding("UTF-8");
-		PrintWriter out = response.getWriter();
 		if (signature != null || userId != null) {
-			String sign = "";
-			sign = CacheDataBase.userSignature.get(userId);
+			String sign = userRedisUtil.getUserSignature(userId);
 			if (sign != null && signature != null && signature.equals(sign)) {
-				User user = userDao.getUserById(userId);
+				User user = userService.qeuryUserById(userId);
 				if (ControlAuthConstans.ONLY_SEE.equals(user.getUserRole())) {
-					out.print(SystemResultCodeEnum.NO_AUTH);
-					out.flush();
-					out.close();
+					InterceptorOutputMessage.outStreamMeassge(response, SystemResultCodeEnum.NO_AUTH);
 					return false;
 				}
 				return true;
 			} else {
-				out.print(SystemResultCodeEnum.EXPIRED_TOKEN);
-				out.flush();
-				out.close();
+				InterceptorOutputMessage.outStreamMeassge(response, SystemResultCodeEnum.EXPIRED_TOKEN);
 				return false;
 			}
 		} else {
-			out.print(SystemResultCodeEnum.NO_USER);
-			out.flush();
-			out.close();
+			InterceptorOutputMessage.outStreamMeassge(response, SystemResultCodeEnum.NO_USER);
 			return false;
 		}
 	}

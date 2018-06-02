@@ -3,8 +3,10 @@ package com.ifarm.bean;
 import com.ifarm.util.ByteConvert;
 
 public class WFMControlCommand extends ControlCommand {
-
+	
+	private static final long serialVersionUID = 3603987618260925806L;
 	private WFMControlTask wfmControlTask; // 一次完整使用控制操作的编号，包括开始到结束
+	private Integer taskId;
 	private String commandCategory; // 指令类别（立即执行、定时执行、手动停止、自动停止)
 	private Integer level; // 命令等级（手动停止为4最高等级，其次为自动停止、往下以此为立即执行和定时执行）
 	private Integer controlDeviceId;
@@ -42,6 +44,7 @@ public class WFMControlCommand extends ControlCommand {
 
 	public WFMControlCommand(WFMControlTask wfmControlTask, String commandCategory, Integer level, Integer controlDeviceId, Long collectorId) {
 		this.wfmControlTask = wfmControlTask;
+		this.taskId = wfmControlTask.getControllerLogId();
 		this.commandCategory = commandCategory;
 		this.level = level;
 		this.controlDeviceId = controlDeviceId;
@@ -114,6 +117,14 @@ public class WFMControlCommand extends ControlCommand {
 
 	public void setIndentifying(String indentifying) {
 		this.indentifying = indentifying;
+	}
+	
+	public Integer getTaskId() {
+		return taskId;
+	}
+
+	public void setTaskId(Integer taskId) {
+		this.taskId = taskId;
 	}
 
 	public byte[] commandToByte() {

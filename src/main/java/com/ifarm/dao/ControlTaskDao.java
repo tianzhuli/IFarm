@@ -1,5 +1,6 @@
 package com.ifarm.dao;
 
+import org.hibernate.SQLQuery;
 import org.hibernate.Session;
 import org.springframework.stereotype.Repository;
 
@@ -17,8 +18,16 @@ public class ControlTaskDao extends BaseDao<ControlTask> {
 		session.update(controlTask);
 	}
 
-	public void delteControlTask(ControlTask controlTask) {
+	public void deleteControlTask(ControlTask controlTask) {
 		Session session = getSession();
 		session.delete(controlTask);
+	}
+	
+	public void deleteControlTask(Integer controlTaskId){
+		Session session = getSession();
+		String sql = "delete from ControlTask where controllerLogId=?";
+		SQLQuery query = session.createSQLQuery(sql);
+		query.setParameter(0, controlTaskId);
+		query.executeUpdate();
 	}
 }

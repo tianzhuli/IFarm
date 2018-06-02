@@ -10,11 +10,11 @@ import com.ifarm.log.RedisLog;
 public class InitRedisDao {
 	@Autowired
 	private RedisTemplate<String, String> template;
-
+	
 	public boolean redisConnect() {
 		try {
 			String pong = template.getConnectionFactory().getConnection().ping();
-			System.out.println("redis返回：" + pong);
+			RedisLog.CONNECTREDISLOG_LOG.info("redis返回：" + pong);
 		} catch (Exception e) {
 			RedisLog.CONNECTREDISLOG_LOG.error("redis connect:" + e.toString());
 			return false;

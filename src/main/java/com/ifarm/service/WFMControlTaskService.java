@@ -22,4 +22,8 @@ public class WFMControlTaskService {
 	public void deleteControlTask(WFMControlTask wfmControlTask) {
 		wfmControlTaskDao.delteControlTask(wfmControlTask);
 	}
+	
+	public void deleteControlTask(Integer controlTaskId) {
+		wfmControlTaskDao.deleteControlTask(controlTaskId);
+	}
 }

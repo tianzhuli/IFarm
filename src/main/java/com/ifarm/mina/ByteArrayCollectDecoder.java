@@ -1,27 +1,32 @@
 package com.ifarm.mina;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.mina.core.buffer.IoBuffer;
 import org.apache.mina.core.session.IoSession;
 import org.apache.mina.filter.codec.CumulativeProtocolDecoder;
 import org.apache.mina.filter.codec.ProtocolDecoderOutput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import com.ifarm.bean.CollectorDeviceValue;
 import com.ifarm.bean.DeviceValueBase;
-import com.ifarm.util.CacheDataBase;
+import com.ifarm.service.CollectorDeviceValueService;
+import com.ifarm.service.CollectorValueService;
 import com.ifarm.util.ConvertData;
 
+@Component
 public class ByteArrayCollectDecoder extends CumulativeProtocolDecoder {
 	private static final Logger DECORE_LOG = LoggerFactory.getLogger(ByteArrayCollectDecoder.class);
 	private ConvertData convertData = new ConvertData();
 	int offset = 2; // 底层的bug，服务器解决
 	int headerLen = 18;
 	private static final int dataSize = 10;
-
+	@Autowired
+	private CollectorValueService collectorValuesService;
+	@Autowired
+	private CollectorDeviceValueService cValueService;
+	
 	public void byteLogRecord(byte[] arr, String name) {
 		StringBuilder builder = new StringBuilder();
 		for (int i = 0; i < arr.length; i++) {
@@ -70,7 +75,7 @@ public class ByteArrayCollectDecoder extends CumulativeProtocolDecoder {
 				int validNum = convertData.getdataType3(headerBytes, 10);
 				DECORE_LOG.info("sum device is {} and valid data is {}", num, validNum);
 				// 从10开始解析，表示在线有效数量，解析表头，后面改成了解析所有设备，之后通过设备的状态位去判断是否有效
-				CacheDataBase.collectorValuesService.saveCollectorValues(headerBytes, 12);
+				collectorValuesService.saveCollectorValues(headerBytes, 12);
 				// 判断缓存里面是否有指令下发
 				session.setAttribute("num", num);
 				resolveCollectorData(session, in, num, out);
@@ -114,8 +119,9 @@ public class ByteArrayCollectDecoder extends CumulativeProtocolDecoder {
 				DeviceValueBase collectorDeviceValue = new CollectorDeviceValue();
 				collectorDeviceValue.setCollectData(data, size);
 				collectorDeviceValue.setDeviceId(id);
-				CacheDataBase.dValueService.saveCollectorDeviceValues(collectorDeviceValue);
-				if (CacheDataBase.collcetorDeviceMainValueCacheMap.containsKey(collectorDeviceValue.getDeviceId())) {
+				cValueService.saveCollectorDeviceValues(collectorDeviceValue);
+				cValueService.saveCollectorDeviceCache(collectorDeviceValue.getDeviceId(), collectorDeviceValue);
+				/*if (CacheDataBase.collcetorDeviceMainValueCacheMap.containsKey(collectorDeviceValue.getDeviceId())) {
 					List<DeviceValueBase> list = CacheDataBase.collcetorDeviceMainValueCacheMap.get(collectorDeviceValue.getDeviceId());
 					if (list.size() >= CacheDataBase.cacheSize) {
 						list.remove(0);
@@ -128,7 +134,7 @@ public class ByteArrayCollectDecoder extends CumulativeProtocolDecoder {
 					list.add(collectorDeviceValue);
 					CacheDataBase.collcetorDeviceMainValueCacheMap.put(collectorDeviceValue.getDeviceId(), list);
 				}
-				CacheDataBase.collectorDeviceMainValueMap.put(collectorDeviceValue.getDeviceId(), collectorDeviceValue);
+				CacheDataBase.collectorDeviceMainValueMap.put(collectorDeviceValue.getDeviceId(), collectorDeviceValue);*/
 				String validString = "valid";
 				if (valid == 0) {
 					validString = "no valid"; // 后期考虑要不要添加到内存中
